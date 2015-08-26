@@ -3,7 +3,7 @@
     <SubscriptionId>Print Jobs</SubscriptionId>
     <SubscriptionType>SourceInitiated</SubscriptionType>
     <Description>Events for print job submission</Description>
-    <Enabled>true</Enabled>
+    <Enabled>false</Enabled>
     <Uri>http://schemas.microsoft.com/wbem/wsman/1/windows/EventLog</Uri>
 
     <ConfigurationMode>Custom</ConfigurationMode>

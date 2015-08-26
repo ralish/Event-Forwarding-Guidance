@@ -3,7 +3,7 @@
     <SubscriptionId>Application Blocks</SubscriptionId>
     <SubscriptionType>SourceInitiated</SubscriptionType>
     <Description>Events for AppLocker &amp; SRP blocks</Description>
-    <Enabled>true</Enabled>
+    <Enabled>false</Enabled>
     <Uri>http://schemas.microsoft.com/wbem/wsman/1/windows/EventLog</Uri>
 
     <ConfigurationMode>Custom</ConfigurationMode>

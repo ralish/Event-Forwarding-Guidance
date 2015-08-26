@@ -3,7 +3,7 @@
     <SubscriptionId>Privileged Group Changes</SubscriptionId>
     <SubscriptionType>SourceInitiated</SubscriptionType>
     <Description>Events indicating a security-enabled group was modified</Description>
-    <Enabled>true</Enabled>
+    <Enabled>false</Enabled>
     <Uri>http://schemas.microsoft.com/wbem/wsman/1/windows/EventLog</Uri>
 
     <ConfigurationMode>Custom</ConfigurationMode>

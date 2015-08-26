@@ -3,7 +3,7 @@
     <SubscriptionId>Software Changes</SubscriptionId>
     <SubscriptionType>SourceInitiated</SubscriptionType>
     <Description>Events for Windows servicing &amp; software changes</Description>
-    <Enabled>true</Enabled>
+    <Enabled>false</Enabled>
     <Uri>http://schemas.microsoft.com/wbem/wsman/1/windows/EventLog</Uri>
 
     <ConfigurationMode>Custom</ConfigurationMode>

@@ -3,7 +3,7 @@
     <SubscriptionId>Windows Bugchecks</SubscriptionId>
     <SubscriptionType>SourceInitiated</SubscriptionType>
     <Description>Events for bugchecks (aka. Blue Screens of Death)</Description>
-    <Enabled>true</Enabled>
+    <Enabled>false</Enabled>
     <Uri>http://schemas.microsoft.com/wbem/wsman/1/windows/EventLog</Uri>
 
     <ConfigurationMode>Custom</ConfigurationMode>

@@ -3,7 +3,7 @@
     <SubscriptionId>EMET Alerts</SubscriptionId>
     <SubscriptionType>SourceInitiated</SubscriptionType>
     <Description>Events indicating possible exploit attempts</Description>
-    <Enabled>true</Enabled>
+    <Enabled>false</Enabled>
     <Uri>http://schemas.microsoft.com/wbem/wsman/1/windows/EventLog</Uri>
 
     <ConfigurationMode>Custom</ConfigurationMode>

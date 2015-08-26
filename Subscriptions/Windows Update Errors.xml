@@ -3,7 +3,7 @@
     <SubscriptionId>Windows Update Errors</SubscriptionId>
     <SubscriptionType>SourceInitiated</SubscriptionType>
     <Description>Events for Windows Update errors</Description>
-    <Enabled>true</Enabled>
+    <Enabled>false</Enabled>
     <Uri>http://schemas.microsoft.com/wbem/wsman/1/windows/EventLog</Uri>
 
     <ConfigurationMode>Custom</ConfigurationMode>
