@@ -53,7 +53,7 @@
     <ReadExistingEvents>true</ReadExistingEvents>
     <TransportName>HTTP</TransportName>
     <ContentFormat>RenderedText</ContentFormat>
-    <Locale Language="en-US"/>
+    <Locale Language="en-AU"/>
     <LogFile>ForwardedEvents</LogFile>
     <PublisherName>Microsoft-Windows-EventCollector</PublisherName>
     <AllowedSourceNonDomainComputers></AllowedSourceNonDomainComputers>
