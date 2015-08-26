@@ -103,5 +103,5 @@
     <LogFile>ForwardedEvents</LogFile>
     <PublisherName>Microsoft-Windows-EventCollector</PublisherName>
     <AllowedSourceNonDomainComputers></AllowedSourceNonDomainComputers>
-    <AllowedSourceDomainComputers></AllowedSourceDomainComputers>
+    <AllowedSourceDomainComputers>O:NSG:BAD:P(A;;GA;;;DC)S:</AllowedSourceDomainComputers>
 </Subscription>
