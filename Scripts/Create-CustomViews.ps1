@@ -81,11 +81,23 @@ Function Validate-Input () {
 
 Function Get-TimeSpanDescription ([TimeSpan] $TimeSpan) {
     if ($TimeSpan.Days -gt 0 ) {
-        return "Last " + $TimeSpan.Days + " Days"
+        if ($TimeSpan.Days -eq 1) {
+            return "Last Day"
+        } else {
+            return "Last " + $TimeSpan.Days + " Days"
+        }
     } elseif ($TimeSpan.Hours -gt 0) {
-        return "Last " + $TimeSpan.Hours + " Hours"
+        if ($TimeSpan.Hours -eq 1) {
+            return "Last Hour"
+        } else {
+            return "Last " + $TimeSpan.Hours + " Hours"
+        }
     } else {
-        return "Last " + $TimeSpan.Minutes + " Minutes"
+        if ($TimeSpan.Minutes -eq 1) {
+            return "Last Minute"
+        } else {
+            return "Last " + $TimeSpan.Minutes + " Minutes"
+        }
     }
 }
 
