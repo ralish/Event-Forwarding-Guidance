@@ -15,6 +15,9 @@
     .PARAMETER CustomViewsPath
     Specifies the directory where generated Custom Views will be saved.
 
+    .PARAMETER PerSubscriptionFolders
+    Place generated Custom Views into folders per subscription.
+
     .PARAMETER TimeFilter
     A TimeSpan object provided by Get-TimeSpan used to filter custom views.
 
@@ -31,6 +34,9 @@ Param(
     [Parameter(Mandatory=$true)]
     [ValidateNotNullOrEmpty()]
     [String]$CustomViewsPath,
+
+    [Parameter(Mandatory=$false)]
+    [switch]$PerSubscriptionFolders,
 
     [Parameter(Mandatory=$false)]
     [TimeSpan]$TimeFilter
@@ -118,8 +124,7 @@ Function Parse-Subscription ([IO.FileInfo] $Subscription) {
                     $CvCategory = [IO.Path]::GetFileNameWithoutExtension($Subscription.FullName)
                     $CvName = $CustomView[0]
                     $CvData = $CustomView[1]
-                    $CvFile = "$CvCategory - $CvName.xml"
-                    Export-CustomView $CvData $CvFile
+                    Export-CustomView $CvCategory $CvName $CvData
                 }
             }
         }
@@ -158,7 +163,22 @@ Function New-CustomView ([Xml.XmlElement] $SelectElement) {
     return [String[]] $CustomView = $CvName, $CvData
 }
 
-Function Export-CustomView ([String] $CvData, [String] $CvFile) {
+Function Export-CustomView ([String] $CvCategory, [String] $CvName, [String] $CvData) {
+    if ($PerSubscriptionFolders) {
+        $CvFile = "$CvName.xml"
+        $CvCategoryPath = Join-Path $CustomViewsPath $CvCategory
+        if (Test-Path -Path $CvCategoryPath -PathType Container -IsValid) {
+            if (!(Test-Path -Path $CvCategoryPath -PathType Container)) {
+                $null = New-Item -Path $CvCategoryPath -ItemType Directory
+            }
+            $CustomViewsPath = Resolve-Path $CvCategoryPath
+        } else {
+            Write-Error "A Custom Views category path is invalid: $CvCategoryPath"
+        }
+    } else {
+        $CvFile = "$CvCategory - $CvName.xml"
+    }
+
     $CvPath = Join-Path $CustomViewsPath $CvFile
     Out-File -FilePath $CvPath -Encoding UTF8 -InputObject $CvData -Force
 }
