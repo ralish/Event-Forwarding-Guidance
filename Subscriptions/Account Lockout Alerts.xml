@@ -22,8 +22,6 @@
 <QueryList>
   <Query Id="0" Path="Security">
     <!-- Account Lockouts -->
-    <!-- For Local Accounts, the event is created locally -->
-    <!-- For Domain Accounts, the event is created on the authenticating DC -->
     <Select Path="Security">
       *[System[Provider[@Name='Microsoft-Windows-Security-Auditing']
         and (Level=4 or Level=0)

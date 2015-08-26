@@ -32,7 +32,7 @@
       *[EventData[Data[@Name='TargetUserName']!='ANONYMOUS LOGON']]
     </Select>
 
-    <!-- Pass the Hash Detection: Success -->
+    <!-- Pass the Hash Detection (Success) -->
     <Select Path="Security">
       *[System[Provider[@Name='Microsoft-Windows-Security-Auditing']
         and (Level=4 or Level=0)
@@ -47,7 +47,7 @@
       *[EventData[Data[@Name='TargetDomainName']!='DOMAIN_NAME_HERE']]
     </Select>
 
-    <!-- Pass the Hash Detection: Failure -->
+    <!-- Pass the Hash Detection (Failure) -->
     <Select Path="Security">
       *[System[Provider[@Name='Microsoft-Windows-Security-Auditing']
         and (Level=4 or Level=0)
@@ -76,7 +76,6 @@
     </Select>
 
     <!-- Stops all service logons (success & failure) from being captured -->
-    <!-- LogonType 5 and 0 are used for service and system logons respectively -->
     <Suppress Path="Security">
       *[System[Provider[@Name='Microsoft-Windows-Security-Auditing']
         and (Level=4 or Level=0)

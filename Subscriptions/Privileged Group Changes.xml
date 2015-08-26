@@ -22,7 +22,6 @@
 <QueryList>
   <Query Id="0" Path="Security">
     <!-- User added to a security-enabled group -->
-    <!-- Local users added to a local security-enabled group will only send the SID of that user to the event collector -->
     <Select Path="Security">
       *[System[Provider[@Name='Microsoft-Windows-Security-Auditing']
         and (EventID=4728 or EventID=4732 or EventID=4756)]]
