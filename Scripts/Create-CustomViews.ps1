@@ -46,14 +46,26 @@ Param(
 $ErrorActionPreference = 'Stop'
 
 # Constants of Custom View XML data used during assembly
-Set-Variable -Name CvFileStart -Option Constant -Scope Script -Value "<ViewerConfig>`n`t<QueryConfig>`n`t`t<QueryParams>`n`t`t`t<UserQuery/>`n`t`t</QueryParams>`n`t`t<QueryNode>"
-Set-Variable -Name CvFileEnd -Option Constant -Scope Script -Value "`n`t`t</QueryNode>`n`t</QueryConfig>`n</ViewerConfig>"
-Set-Variable -Name CvNameStart -Option Constant -Scope Script -Value "`n`t`t`t<Name>"
-Set-Variable -Name CvNameEnd -Option Constant -Scope Script -Value "</Name>"
-Set-Variable -Name CvQueryStart -Option Constant -Scope Script -Value "`n`t`t`t<QueryList>`n`t`t`t`t<Query Id=`"0`">"
-Set-Variable -Name CvQueryEnd -Option Constant -Scope Script -Value "`n`t`t`t`t</Query>`n`t`t`t</QueryList>"
-Set-Variable -Name CvFwdEvtStart -Option Constant -Scope Script -Value "`n    <Select Path=`"ForwardedEvents`">"
-Set-Variable -Name CvFwdEvtEnd -Option Constant -Scope Script -Value "`n    </Select>"
+Set-Variable -Name CvFileViewerConfigStart -Option Constant -Scope Script -Value "<ViewerConfig>"
+Set-Variable -Name CvFileQueryConfigStart -Option Constant -Scope Script -Value "`n`t<QueryConfig>"
+Set-Variable -Name CvFileQueryParamsStart -Option Constant -Scope Script -Value "`n`t`t<QueryParams>"
+Set-Variable -Name CvFileUserQuery -Option Constant -Scope Script -Value "`n`t`t`t<UserQuery />"
+Set-Variable -Name CvFileQueryParamsEnd -Option Constant -Scope Script -Value "`n`t`t</QueryParams>"
+Set-Variable -Name CvFileQueryNodeStart -Option Constant -Scope Script -Value "`n`t`t<QueryNode>"
+Set-Variable -Name CvFileNameStart -Option Constant -Scope Script -Value "`n`t`t`t<Name>"
+Set-Variable -Name CvFileNameEnd -Option Constant -Scope Script -Value "</Name>"
+Set-Variable -Name CvFileQueryListStart -Option Constant -Scope Script -Value "`n`t`t`t<QueryList>"
+Set-Variable -Name CvFileQueryIdStart -Option Constant -Scope Script -Value "`n`t`t`t`t<Query Id=`"0`">"
+Set-Variable -Name CvFileSelectPathStart -Option Constant -Scope Script -Value "`n    <Select Path=`"ForwardedEvents`">"
+Set-Variable -Name CvFileSelectPathEnd -Option Constant -Scope Script -Value "</Select>"
+Set-Variable -Name CvFileQueryIdEnd -Option Constant -Scope Script -Value "`n`t`t`t`t</Query>"
+Set-Variable -Name CvFileQueryListEnd -Option Constant -Scope Script -Value "`n`t`t`t</QueryList>"
+Set-Variable -Name CvFileQueryNodeEnd -Option Constant -Scope Script -Value "`n`t`t</QueryNode>"
+Set-Variable -Name CvFileQueryConfigEnd -Option Constant -Scope Script -Value "`n`t</QueryConfig>"
+Set-Variable -Name CvFileResultsConfigStart -Option Constant -Scope Script -Value "`n`t<ResultsConfig>"
+Set-Variable -Name CvFileResultsView -Option Constant -Scope Script -Value "`n`t`t<Columns>`n`t`t`t<Column Name=`"Level`" Type=`"System.String`" Path=`"Event/System/Level`" Visible=`"`">100</Column>`n`t`t`t<Column Name=`"Date and Time`" Type=`"System.DateTime`" Path=`"Event/System/TimeCreated/@SystemTime`" Visible=`"`">150</Column>`n`t`t`t<Column Name=`"Source`" Type=`"System.String`" Path=`"Event/System/Provider/@Name`" Visible=`"`">200</Column>`n`t`t`t<Column Name=`"Event ID`" Type=`"System.UInt32`" Path=`"Event/System/EventID`" Visible=`"`">75</Column>`n`t`t`t<Column Name=`"Task Category`" Type=`"System.String`" Path=`"Event/System/Task`" Visible=`"`">100</Column>`n`t`t`t<Column Name=`"Computer`" Type=`"System.String`" Path=`"Event/System/Computer`" Visible=`"`">250</Column>`n`t`t</Columns>"
+Set-Variable -Name CvFileResultsConfigEnd -Option Constant -Scope Script -Value "`n`t</ResultsConfig>"
+Set-Variable -Name CvFileViewerConfigEnd -Option Constant -Scope Script -Value "`n</ViewerConfig>"
 
 Function Validate-Input () {
     if (Test-Path -Path $WECSubscriptionsPath -PathType Container) {
@@ -154,11 +166,23 @@ Function New-CustomView ([Xml.XmlElement] $SelectElement) {
     $CvQuery = $CvFwdEvtStart + $CvXpath + $CvFwdEvtEnd
 
     # Construct the Custom View
-    $CvData = $CvFileStart
-    $CvData += $CvNameStart + $CvName + $CvNameEnd
-    $CvData += $CvQueryStart + $CvQuery + $CvQueryEnd
-    $CvData += $CvFileEnd
-
+    $CvData = $CvFileViewerConfigStart
+    $CvData += $CvFileQueryConfigStart
+    $CvData += $CvFileQueryParamsStart + $CvFileUserQuery + $CvFileQueryParamsEnd
+    $CvData += $CvFileQueryNodeStart
+    $CvData += $CvFileNameStart + $CvName + $CvFileNameEnd
+    $CvData += $CvFileQueryListStart
+    $CvData += $CvFileQueryIdStart
+    $CvData += $CvFileSelectPathStart + $CvQuery + $CvFileSelectPathEnd
+    $CvData += $CvFileQueryIdEnd
+    $CvData += $CvFileQueryListEnd
+    $CvData += $CvFileQueryNodeEnd
+    $CvData += $CvFileQueryConfigEnd
+    $CvData += $CvFileResultsConfigStart
+    $CvData += $CvFileResultsView
+    $CvData += $CvFileResultsConfigEnd
+    $CvData += $CvFileViewerConfigEnd
+    
     # Return the generated XML as well as the extracted name
     return [String[]] $CustomView = $CvName, $CvData
 }
