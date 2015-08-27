@@ -54,6 +54,7 @@ Set-Variable -Name CvFileQueryParamsEnd -Option Constant -Scope Script -Value "`
 Set-Variable -Name CvFileQueryNodeStart -Option Constant -Scope Script -Value "`n`t`t<QueryNode>"
 Set-Variable -Name CvFileNameStart -Option Constant -Scope Script -Value "`n`t`t`t<Name>"
 Set-Variable -Name CvFileNameEnd -Option Constant -Scope Script -Value "</Name>"
+Set-Variable -Name CvFileSortConfig -Option Constant -Scope Script -Value "`n`t`t`t<SortConfig Asc=`"0`">`n`t`t`t`t<Column Name=`"Date and Time`" Type=`"System.DateTime`" Path=`"Event/System/TimeCreated/@SystemTime`" Visible=`"`">150</Column>`n`t`t`t</SortConfig>"
 Set-Variable -Name CvFileQueryListStart -Option Constant -Scope Script -Value "`n`t`t`t<QueryList>"
 Set-Variable -Name CvFileQueryIdStart -Option Constant -Scope Script -Value "`n`t`t`t`t<Query Id=`"0`">"
 Set-Variable -Name CvFileSelectPathStart -Option Constant -Scope Script -Value "`n    <Select Path=`"ForwardedEvents`">"
@@ -62,9 +63,7 @@ Set-Variable -Name CvFileQueryIdEnd -Option Constant -Scope Script -Value "`n`t`
 Set-Variable -Name CvFileQueryListEnd -Option Constant -Scope Script -Value "`n`t`t`t</QueryList>"
 Set-Variable -Name CvFileQueryNodeEnd -Option Constant -Scope Script -Value "`n`t`t</QueryNode>"
 Set-Variable -Name CvFileQueryConfigEnd -Option Constant -Scope Script -Value "`n`t</QueryConfig>"
-Set-Variable -Name CvFileResultsConfigStart -Option Constant -Scope Script -Value "`n`t<ResultsConfig>"
-Set-Variable -Name CvFileResultsView -Option Constant -Scope Script -Value "`n`t`t<Columns>`n`t`t`t<Column Name=`"Level`" Type=`"System.String`" Path=`"Event/System/Level`" Visible=`"`">100</Column>`n`t`t`t<Column Name=`"Date and Time`" Type=`"System.DateTime`" Path=`"Event/System/TimeCreated/@SystemTime`" Visible=`"`">150</Column>`n`t`t`t<Column Name=`"Source`" Type=`"System.String`" Path=`"Event/System/Provider/@Name`" Visible=`"`">200</Column>`n`t`t`t<Column Name=`"Event ID`" Type=`"System.UInt32`" Path=`"Event/System/EventID`" Visible=`"`">75</Column>`n`t`t`t<Column Name=`"Task Category`" Type=`"System.String`" Path=`"Event/System/Task`" Visible=`"`">100</Column>`n`t`t`t<Column Name=`"Computer`" Type=`"System.String`" Path=`"Event/System/Computer`" Visible=`"`">250</Column>`n`t`t</Columns>"
-Set-Variable -Name CvFileResultsConfigEnd -Option Constant -Scope Script -Value "`n`t</ResultsConfig>"
+Set-Variable -Name CvFileResultsConfig -Option Constant -Scope Script -Value "`n`t<ResultsConfig>`n`t`t<Columns>`n`t`t`t<Column Name=`"Level`" Type=`"System.String`" Path=`"Event/System/Level`" Visible=`"`">100</Column>`n`t`t`t<Column Name=`"Date and Time`" Type=`"System.DateTime`" Path=`"Event/System/TimeCreated/@SystemTime`" Visible=`"`">150</Column>`n`t`t`t<Column Name=`"Source`" Type=`"System.String`" Path=`"Event/System/Provider/@Name`" Visible=`"`">200</Column>`n`t`t`t<Column Name=`"Event ID`" Type=`"System.UInt32`" Path=`"Event/System/EventID`" Visible=`"`">75</Column>`n`t`t`t<Column Name=`"Task Category`" Type=`"System.String`" Path=`"Event/System/Task`" Visible=`"`">100</Column>`n`t`t`t<Column Name=`"Computer`" Type=`"System.String`" Path=`"Event/System/Computer`" Visible=`"`">250</Column>`n`t`t</Columns>`n`t</ResultsConfig>"
 Set-Variable -Name CvFileViewerConfigEnd -Option Constant -Scope Script -Value "`n</ViewerConfig>"
 
 Function Validate-Input () {
@@ -171,6 +170,7 @@ Function New-CustomView ([Xml.XmlElement] $SelectElement) {
     $CvData += $CvFileQueryParamsStart + $CvFileUserQuery + $CvFileQueryParamsEnd
     $CvData += $CvFileQueryNodeStart
     $CvData += $CvFileNameStart + $CvName + $CvFileNameEnd
+    $CvData += $CvFileSortConfig
     $CvData += $CvFileQueryListStart
     $CvData += $CvFileQueryIdStart
     $CvData += $CvFileSelectPathStart + $CvQuery + $CvFileSelectPathEnd
@@ -178,9 +178,7 @@ Function New-CustomView ([Xml.XmlElement] $SelectElement) {
     $CvData += $CvFileQueryListEnd
     $CvData += $CvFileQueryNodeEnd
     $CvData += $CvFileQueryConfigEnd
-    $CvData += $CvFileResultsConfigStart
-    $CvData += $CvFileResultsView
-    $CvData += $CvFileResultsConfigEnd
+    $CvData += $CvFileResultsConfig
     $CvData += $CvFileViewerConfigEnd
     
     # Return the generated XML as well as the extracted name
