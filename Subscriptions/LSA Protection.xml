@@ -21,11 +21,19 @@
         <![CDATA[
 <QueryList>
   <Query Id="0" Path="Microsoft-Windows-Wininit/Diagnostic">
-    <!-- Additional LSA Protection events -->
+    <!-- Code Integrity events -->
     <Select Path="Microsoft-Windows-CodeIntegrity/Operational">
       *[System[Provider[@Name='Microsoft-Windows-CodeIntegrity']
         and (EventID=3033 or EventID=3063 or EventID=3065 or EventID=3066)]]
     </Select>    
+  </Query>
+
+  <Query Id="1" Path="System">
+    <!-- Process startup events -->
+    <Select Path="System">
+      *[System[Provider[@Name='Microsoft-Windows-Wininit']
+        and (EventID=12)]]
+    </Select>
   </Query>
 </QueryList>
         ]]>
