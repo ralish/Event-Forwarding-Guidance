@@ -162,7 +162,7 @@ Function New-CustomView ([Xml.XmlElement] $SelectElement) {
     # The extracted query is for selecting events on remote systems, but
     # we'll be creating the Custom View on the Event Collector. As such,
     # we must adjust the provided query to use the Forwarded Events log.
-    $CvQuery = $CvFwdEvtStart + $CvXpath + $CvFwdEvtEnd
+    $CvQuery = $CvFileSelectPathStart + $CvXpath + $CvFileSelectPathEnd
 
     # Construct the Custom View
     $CvData = $CvFileViewerConfigStart
@@ -173,7 +173,7 @@ Function New-CustomView ([Xml.XmlElement] $SelectElement) {
     $CvData += $CvFileSortConfig
     $CvData += $CvFileQueryListStart
     $CvData += $CvFileQueryIdStart
-    $CvData += $CvFileSelectPathStart + $CvQuery + $CvFileSelectPathEnd
+    $CvData += $CvQuery
     $CvData += $CvFileQueryIdEnd
     $CvData += $CvFileQueryListEnd
     $CvData += $CvFileQueryNodeEnd
