@@ -181,7 +181,7 @@ Function New-ScheduledTask ([Xml.XmlElement] $SelectElement) {
     $StData += $StFileTriggersEnd
     $StData += $StFilePrincipalsStart
     $StData += $StFilePrincipalStart
-    $StData += $StFileUserIdStart + $StAuthor + $StFileUserIdEnd
+    $StData += $StFileUserIdStart + "S-1-5-19" + $StFileUserIdEnd # LOCAL SERVICE
     $StData += $StFileLogonType
     $StData += $StFilePrincipalEnd
     $StData += $StFilePrincipalsEnd
