@@ -13,7 +13,7 @@
     Specifies the directory containing Windows Event Collector subscriptions to parse.
 
     .PARAMETER CustomViewsPath
-    Specifies the directory where generated Custom Views will be saved.
+    Specifies the directory where generated Custom Views will be saved. Defaults to "Custom Views" in the current working directory if not specified.
 
     .PARAMETER PerSubscriptionFolders
     Place generated Custom Views into folders per subscription.
@@ -31,9 +31,9 @@ Param(
     [ValidateNotNullOrEmpty()]
     [String]$WECSubscriptionsPath,
 
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory=$false)]
     [ValidateNotNullOrEmpty()]
-    [String]$CustomViewsPath,
+    [String]$CustomViewsPath='Custom Views',
 
     [Parameter(Mandatory=$false)]
     [switch]$PerSubscriptionFolders,

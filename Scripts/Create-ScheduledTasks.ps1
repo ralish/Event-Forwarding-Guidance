@@ -13,7 +13,7 @@
     Specifies the directory containing Windows Event Collector subscriptions to parse.
 
     .PARAMETER ScheduledTasksPath
-    Specifies the directory where generated Scheduled Tasks will be saved.
+    Specifies the directory where generated Scheduled Tasks will be saved. Defaults to "Scheduled Tasks" in the current working directory if not specified.
 
     .LINK
     https://www.nsa.gov/ia/_files/app/Spotting_the_Adversary_with_Windows_Event_Log_Monitoring.pdf
@@ -25,9 +25,9 @@ Param(
     [ValidateNotNullOrEmpty()]
     [String]$WECSubscriptionsPath,
 
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory=$false)]
     [ValidateNotNullOrEmpty()]
-    [String]$ScheduledTasksPath
+    [String]$ScheduledTasksPath='Scheduled Tasks'
 )
 
 # Ensure that any errors we receive are considered fatal
