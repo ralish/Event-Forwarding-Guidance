@@ -33,9 +33,13 @@ Param(
 # Ensure that any errors we receive are considered fatal
 $ErrorActionPreference = 'Stop'
 
-# Constants of XPath XML data used during assembly
+# Constants of XPath Query XML data used during assembly
+Set-Variable -Name XpQueryListStart -Option Constant -Scope Script -Value "`n`t`t`t`t<QueryList>"
+Set-Variable -Name XpQueryIdStart -Option Constant -Scope Script -Value "`n`t`t`t`t`t<Query Id=`"0`">"
 Set-Variable -Name XpSelectPathStart -Option Constant -Scope Script -Value "`n    <Select Path=`"ForwardedEvents`">"
 Set-Variable -Name XpSelectPathEnd -Option Constant -Scope Script -Value "</Select>"
+Set-Variable -Name XpQueryIdEnd -Option Constant -Scope Script -Value "`n`t`t`t`t`t</Query>"
+Set-Variable -Name XpQueryListEnd -Option Constant -Scope Script -Value "`n`t`t`t`t</QueryList>"
 
 # Constants of Scheduled Task XML data used during assembly
 Set-Variable -Name StFileXmlDeclaration -Option Constant -Scope Script -Value "<?xml version=`"1.0`" encoding=`"UTF-16`"?>"
@@ -130,9 +134,19 @@ Function New-ScheduledTask ([Xml.XmlElement] $SelectElement) {
     $StXpath = $SelectElement.InnerText
 
     # The extracted query is for selecting events on remote systems, but
-    # we'll be creating the Scheduled Task on the Event Collector. As such,
-    # we must adjust the provided query to use the Forwarded Events log.
-    $StQuery = $XpSelectPathStart + $StXpath + $XpSelectPathEnd
+    # we'll be creating the Scheduled Task on the Event Collector. So we
+    # must adjust the provided query to use the Forwarded Events log.
+    $StSelectQuery += $XpSelectPathStart + $StXpath + $XpSelectPathEnd
+
+    # Build the inner Subscription query used as the event trigger
+    $StRawQuery = $XpQueryListStart
+    $StRawQuery += $XpQueryIdStart
+    $StRawQuery += $StSelectQuery
+    $StRawQuery += $XpQueryIdEnd
+    $StRawQuery += $XpQueryListEnd
+
+    # Properly escape the final query for inclusion
+    $StQuery = [Security.SecurityElement]::Escape($StRawQuery)
 
     # Get the current date & time in round-trip format for timestamp
     $StDate = Get-Date -Format o
