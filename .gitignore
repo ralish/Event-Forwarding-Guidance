@@ -1,0 +1,10 @@
+# Windows stuff
+$RECYCLE.BIN/
+Desktop.ini
+Thumbs.db
+ehthumbs.db
+
+# Script generated outputs
+Custom Views/
+Scheduled Tasks/
+
