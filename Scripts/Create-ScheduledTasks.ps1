@@ -15,6 +15,9 @@
     .PARAMETER ScheduledTasksPath
     Specifies the directory where generated Scheduled Tasks will be saved. Defaults to "Scheduled Tasks" in the current working directory if not specified.
 
+    .PARAMETER EnableTask
+    Specifies that the generated Scheduled Task should be set as enabled by default. On importing into a system the task will be immediately active.
+
     .LINK
     https://www.nsa.gov/ia/_files/app/Spotting_the_Adversary_with_Windows_Event_Log_Monitoring.pdf
 #>
@@ -27,7 +30,10 @@ Param(
 
     [Parameter(Mandatory=$false)]
     [ValidateNotNullOrEmpty()]
-    [String]$ScheduledTasksPath='Scheduled Tasks'
+    [String]$ScheduledTasksPath='Scheduled Tasks',
+
+    [Parameter(Mandatory=$false)]
+    [switch]$EnableTask
 )
 
 # Ensure that any errors we receive are considered fatal
@@ -133,26 +139,33 @@ Function New-ScheduledTask ([Xml.XmlElement] $SelectElement) {
     # Extract the XPath query from the element
     $StXpath = $SelectElement.InnerText
 
+    # Get the current date & time in round-trip format for timestamp
+    $StDate = Get-Date -Format o
+
+    # Get the current domain & logged-in user for authorship
+    $StAuthor = [Environment]::UserDomainName + '\' + [Environment]::UserName
+
+    # Configure the generated Scheduled Task's default state
+    if ($EnableTask) {
+        $StEnabled = "true"
+    } else {
+        $StEnabled = "false"
+    }
+
     # The extracted query is for selecting events on remote systems, but
     # we'll be creating the Scheduled Task on the Event Collector. So we
     # must adjust the provided query to use the Forwarded Events log.
     $StSelectQuery += $XpSelectPathStart + $StXpath + $XpSelectPathEnd
 
     # Build the inner Subscription query used as the event trigger
-    $StRawQuery = $XpQueryListStart
-    $StRawQuery += $XpQueryIdStart
-    $StRawQuery += $StSelectQuery
-    $StRawQuery += $XpQueryIdEnd
-    $StRawQuery += $XpQueryListEnd
+    $StSubscription = $XpQueryListStart
+    $StSubscription += $XpQueryIdStart
+    $StSubscription += $StSelectQuery
+    $StSubscription += $XpQueryIdEnd
+    $StSubscription += $XpQueryListEnd
 
     # Properly escape the final query for inclusion
-    $StQuery = [Security.SecurityElement]::Escape($StRawQuery)
-
-    # Get the current date & time in round-trip format for timestamp
-    $StDate = Get-Date -Format o
-
-    # Get the current domain & logged-in user for authorship
-    $StAuthor = [Environment]::UserDomainName + '\' + [Environment]::UserName
+    $StSubscription = [Security.SecurityElement]::Escape($StSubscription)
 
     # Construct the Scheduled Task
     $StData = $StFileXmlDeclaration
@@ -163,13 +176,13 @@ Function New-ScheduledTask ([Xml.XmlElement] $SelectElement) {
     $StData += $StFileRegistrationInfoEnd
     $StData += $StFileTriggersStart
     $StData += $StFileEventTriggerStart
-    $StData += $StFileEnabledStart + "Disabled" + $StFileEnabledEnd # TODO
-    $StData += $StFileSubscriptionStart + "$StQuery" + $StFileSubscriptionEnd
+    $StData += $StFileEnabledStart + $StEnabled + $StFileEnabledEnd
+    $StData += $StFileSubscriptionStart + $StSubscription + $StFileSubscriptionEnd
     $StData += $StFileEventTriggerEnd
     $StData += $StFileTriggersEnd
     $StData += $StFilePrincipalsStart
     $StData += $StFilePrincipalStart
-    $StData += $StFileUserIdStart + "$StAuthor" + $StFileUserIdEnd
+    $StData += $StFileUserIdStart + $StAuthor + $StFileUserIdEnd
     $StData += $StFileLogonType
     $StData += $StFileRunLevel
     $StData += $StFilePrincipalEnd
