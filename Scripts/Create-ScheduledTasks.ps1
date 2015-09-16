@@ -15,6 +15,13 @@
     .PARAMETER ScheduledTasksPath
     Specifies the directory where generated Scheduled Tasks will be saved. Defaults to "Scheduled Tasks" in the current working directory if not specified.
 
+    .PARAMETER TriggeredCommand
+    Specifies the command to be executed on triggering of the generated Scheduled Task.
+
+    While this script will automatically XML escape the provided command this will only ensure the Scheduled Task XML definition is valid. It does not guarantee the command is correctly escaped for invocation by the Task Scheduler!
+
+    For example, if providing a PowerShell command, it's recommended to Base 64 encode it and provide it to the PowerShell runtime via the "-EncodedCommand" parameter. This ensures there's no unintended interpretation of the command by the Windows API during parsing of the command but prior to invocation (i.e. before PowerShell is actually launched to execute the supplied script).
+
     .PARAMETER EnableTask
     Specifies that the generated Scheduled Task should be set as enabled by default. On importing into a system the task will be immediately active.
 
@@ -31,6 +38,10 @@ Param(
     [Parameter(Mandatory=$false)]
     [ValidateNotNullOrEmpty()]
     [String]$ScheduledTasksPath='Scheduled Tasks',
+
+    [Parameter(Mandatory=$true)]
+    [ValidateNotNullOrEmpty()]
+    [String]$TriggeredCommand,
 
     [Parameter(Mandatory=$false)]
     [switch]$EnableTask
@@ -163,8 +174,11 @@ Function New-ScheduledTask ([Xml.XmlElement] $SelectElement) {
     $StSubscription += $XpQueryIdEnd
     $StSubscription += $XpQueryListEnd
 
-    # Properly escape the final query for inclusion
+    # Escape the final query for inclusion in the generated XML
     $StSubscription = [Security.SecurityElement]::Escape($StSubscription)
+
+    # Escape the provided command for inclusion in the generated XML
+    $TriggeredCommand = [Security.SecurityElement]::Escape($TriggeredCommand)
 
     # Construct the Scheduled Task
     $StData = $StFileXmlDeclaration
@@ -188,7 +202,7 @@ Function New-ScheduledTask ([Xml.XmlElement] $SelectElement) {
     $StData += $StFileSettingsBlob
     $StData += $StFileActionsStart
     $StData += $StFileExecStart
-    $StData += $StFileCommandStart + "TODO" + $StFileCommandEnd
+    $StData += $StFileCommandStart + $TriggeredCommand + $StFileCommandEnd
     $StData += $StFileExecEnd
     $StData += $StFileActionsEnd
     $StData += $StFileTaskEnd
