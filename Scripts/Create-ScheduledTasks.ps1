@@ -18,11 +18,14 @@
     .PARAMETER ExecutedCommand
     Specifies the command to be executed on triggering of the generated Scheduled Task.
 
+    .PARAMETER CommandArguments
+    Specifies any arguments to be passed to the command to be executed by the Scheduled Task.
+
     .PARAMETER EnableTask
     Specifies that the generated Scheduled Task should be set as enabled by default. On importing into a system the task will be immediately active.
 
     .NOTES
-    While this script will automatically XML escape the provided command, this will only ensure the Scheduled Task XML definition is valid. It does not guarantee the command is correctly escaped for invocation by the Task Scheduler!
+    While this script will automatically XML escape the provided command and any arguments, this will only ensure the Scheduled Task XML definition is valid. It does not guarantee the command and any provided arguments are correctly escaped for invocation by the Task Scheduler!
 
     For example, if providing a PowerShell command, it's recommended to Base 64 encode its arguments and provide them to PowerShell via the "-EncodedCommand" parameter. This ensures there's no unintended interpretation of the arguments by the Windows API during parsing prior to invocation (i.e. before PowerShell is actually launched to execute the supplied script).
 
@@ -43,6 +46,10 @@ Param(
     [Parameter(Mandatory=$true)]
     [ValidateNotNullOrEmpty()]
     [String]$ExecutedCommand,
+
+    [Parameter(Mandatory=$false)]
+    [ValidateNotNullOrEmpty()]
+    [String]$CommandArguments,
 
     [Parameter(Mandatory=$false)]
     [switch]$EnableTask
@@ -88,6 +95,8 @@ Set-Variable -Name StFileActionsStart -Option Constant -Scope Script -Value "`n`
 Set-Variable -Name StFileExecStart -Option Constant -Scope Script -Value "`n`t`t<Exec>"
 Set-Variable -Name StFileCommandStart -Option Constant -Scope Script -Value "`n`t`t`t<Command>"
 Set-Variable -Name StFileCommandEnd -Option Constant -Scope Script -Value "</Command>"
+Set-Variable -Name StFileArgumentsStart -Option Constant -Scope Script -Value "`n`t`t`t<Arguments>"
+Set-Variable -Name StFileArgumentsEnd -Option Constant -Scope Script -Value "</Arguments>"
 Set-Variable -Name StFileExecEnd -Option Constant -Scope Script -Value "`n`t`t</Exec>"
 Set-Variable -Name StFileActionsEnd -Option Constant -Scope Script -Value "`n`t</Actions>"
 Set-Variable -Name StFileTaskEnd -Option Constant -Scope Script -Value "`n</Task>"
@@ -175,11 +184,10 @@ Function New-ScheduledTask ([Xml.XmlElement] $SelectElement) {
     $StSubscription += $XpQueryIdEnd
     $StSubscription += $XpQueryListEnd
 
-    # Escape the final query for inclusion in the generated XML
+    # XML escape the subscription query, command & any arguments
     $StSubscription = [Security.SecurityElement]::Escape($StSubscription)
-
-    # Escape the provided command for inclusion in the generated XML
     $ExecutedCommand = [Security.SecurityElement]::Escape($ExecutedCommand)
+    $CommandArguments = [Security.SecurityElement]::Escape($CommandArguments)
 
     # Construct the Scheduled Task
     $StData = $StFileXmlDeclaration
@@ -204,6 +212,9 @@ Function New-ScheduledTask ([Xml.XmlElement] $SelectElement) {
     $StData += $StFileActionsStart
     $StData += $StFileExecStart
     $StData += $StFileCommandStart + $ExecutedCommand + $StFileCommandEnd
+    if ($CommandArguments) {
+        $StData += $StFileArgumentsStart + $CommandArguments + $StFileArgumentsEnd
+    }
     $StData += $StFileExecEnd
     $StData += $StFileActionsEnd
     $StData += $StFileTaskEnd
