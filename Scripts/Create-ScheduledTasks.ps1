@@ -15,15 +15,16 @@
     .PARAMETER ScheduledTasksPath
     Specifies the directory where generated Scheduled Tasks will be saved. Defaults to "Scheduled Tasks" in the current working directory if not specified.
 
-    .PARAMETER TriggeredCommand
+    .PARAMETER ExecutedCommand
     Specifies the command to be executed on triggering of the generated Scheduled Task.
-
-    While this script will automatically XML escape the provided command this will only ensure the Scheduled Task XML definition is valid. It does not guarantee the command is correctly escaped for invocation by the Task Scheduler!
-
-    For example, if providing a PowerShell command, it's recommended to Base 64 encode it and provide it to the PowerShell runtime via the "-EncodedCommand" parameter. This ensures there's no unintended interpretation of the command by the Windows API during parsing of the command but prior to invocation (i.e. before PowerShell is actually launched to execute the supplied script).
 
     .PARAMETER EnableTask
     Specifies that the generated Scheduled Task should be set as enabled by default. On importing into a system the task will be immediately active.
+
+    .NOTES
+    While this script will automatically XML escape the provided command, this will only ensure the Scheduled Task XML definition is valid. It does not guarantee the command is correctly escaped for invocation by the Task Scheduler!
+
+    For example, if providing a PowerShell command, it's recommended to Base 64 encode its arguments and provide them to PowerShell via the "-EncodedCommand" parameter. This ensures there's no unintended interpretation of the arguments by the Windows API during parsing prior to invocation (i.e. before PowerShell is actually launched to execute the supplied script).
 
     .LINK
     https://www.nsa.gov/ia/_files/app/Spotting_the_Adversary_with_Windows_Event_Log_Monitoring.pdf
@@ -41,7 +42,7 @@ Param(
 
     [Parameter(Mandatory=$true)]
     [ValidateNotNullOrEmpty()]
-    [String]$TriggeredCommand,
+    [String]$ExecutedCommand,
 
     [Parameter(Mandatory=$false)]
     [switch]$EnableTask
@@ -178,7 +179,7 @@ Function New-ScheduledTask ([Xml.XmlElement] $SelectElement) {
     $StSubscription = [Security.SecurityElement]::Escape($StSubscription)
 
     # Escape the provided command for inclusion in the generated XML
-    $TriggeredCommand = [Security.SecurityElement]::Escape($TriggeredCommand)
+    $ExecutedCommand = [Security.SecurityElement]::Escape($ExecutedCommand)
 
     # Construct the Scheduled Task
     $StData = $StFileXmlDeclaration
@@ -202,7 +203,7 @@ Function New-ScheduledTask ([Xml.XmlElement] $SelectElement) {
     $StData += $StFileSettingsBlob
     $StData += $StFileActionsStart
     $StData += $StFileExecStart
-    $StData += $StFileCommandStart + $TriggeredCommand + $StFileCommandEnd
+    $StData += $StFileCommandStart + $ExecutedCommand + $StFileCommandEnd
     $StData += $StFileExecEnd
     $StData += $StFileActionsEnd
     $StData += $StFileTaskEnd
