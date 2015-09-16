@@ -68,7 +68,6 @@ Set-Variable -Name StFilePrincipalsStart -Option Constant -Scope Script -Value "
 Set-Variable -Name StFilePrincipalStart -Option Constant -Scope Script -Value "`n`t`t<Principal id=`"Author`">"
 Set-Variable -Name StFileUserIdStart -Option Constant -Scope Script -Value "`n`t`t`t<UserId>"
 Set-Variable -Name StFileLogonType -Option Constant -Scope Script -Value "`n`t`t`t<LogonType>InteractiveToken</LogonType>"
-Set-Variable -Name StFileRunLevel -Option Constant -Scope Script -Value "`n`t`t`t<RunLevel>LeastPrivilege</RunLevel>"
 Set-Variable -Name StFileUserIdEnd -Option Constant -Scope Script -Value "</UserId>"
 Set-Variable -Name StFilePrincipalEnd -Option Constant -Scope Script -Value "`n`t`t</Principal>"
 Set-Variable -Name StFilePrincipalsEnd -Option Constant -Scope Script -Value "`n`t</Principals>"
@@ -184,7 +183,6 @@ Function New-ScheduledTask ([Xml.XmlElement] $SelectElement) {
     $StData += $StFilePrincipalStart
     $StData += $StFileUserIdStart + $StAuthor + $StFileUserIdEnd
     $StData += $StFileLogonType
-    $StData += $StFileRunLevel
     $StData += $StFilePrincipalEnd
     $StData += $StFilePrincipalsEnd
     $StData += $StFileSettingsBlob
