@@ -104,7 +104,7 @@ Function New-ScheduledTask ([Xml.XmlElement] $SelectElement, [String] $StPath) {
 
     $EtXmlSelect = $EtXmlDoc.CreateElement("Select")
     $EtXmlSelect.SetAttribute("Path", "ForwardedEvents")
-    $EtXmlSelect.InnerText = $StXpath
+    $EtXmlSelect.InnerText = $SelectElement.InnerText
     $EtXmlQuery.AppendChild($EtXmlSelect) | Out-Null
 
     # Escape the subscription query as we need to embed it in more XML!
