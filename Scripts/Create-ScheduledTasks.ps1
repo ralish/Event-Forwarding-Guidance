@@ -66,96 +66,21 @@ Set-Variable -Name XpSelectPathEnd -Option Constant -Scope Script -Value "</Sele
 Set-Variable -Name XpQueryIdEnd -Option Constant -Scope Script -Value "`n`t`t`t`t`t</Query>"
 Set-Variable -Name XpQueryListEnd -Option Constant -Scope Script -Value "`n`t`t`t`t</QueryList>"
 
-# Constants of Scheduled Task XML data used during assembly
-Set-Variable -Name StFileXmlDeclaration -Option Constant -Scope Script -Value "<?xml version=`"1.0`" encoding=`"UTF-16`"?>"
-Set-Variable -Name StFileTaskStart -Option Constant -Scope Script -Value "`n<Task version=`"1.2`" xmlns=`"http://schemas.microsoft.com/windows/2004/02/mit/task`">"
-Set-Variable -Name StFileRegistrationInfoStart -Option Constant -Scope Script -Value "`n`t<RegistrationInfo>"
-Set-Variable -Name StFileDateStart -Option Constant -Scope Script -Value "`n`t`t<Date>"
-Set-Variable -Name StFileDateEnd -Option Constant -Scope Script -Value "`</Date>"
-Set-Variable -Name StFileAuthorStart -Option Constant -Scope Script -Value "`n`t`t<Author>"
-Set-Variable -Name StFileAuthorEnd -Option Constant -Scope Script -Value "`</Author>"
-Set-Variable -Name StFileRegistrationInfoEnd -Option Constant -Scope Script -Value "`n`t</RegistrationInfo>"
-Set-Variable -Name StFileTriggersStart -Option Constant -Scope Script -Value "`n`t<Triggers>"
-Set-Variable -Name StFileEventTriggerStart -Option Constant -Scope Script -Value "`n`t`t<EventTrigger>"
-Set-Variable -Name StFileEnabledStart -Option Constant -Scope Script -Value "`n`t`t`t<Enabled>"
-Set-Variable -Name StFileEnabledEnd -Option Constant -Scope Script -Value "</Enabled>"
-Set-Variable -Name StFileSubscriptionStart -Option Constant -Scope Script -Value "`n`t`t`t<Subscription>"
-Set-Variable -Name StFileSubscriptionEnd -Option Constant -Scope Script -Value "`n`t`t`t</Subscription>"
-Set-Variable -Name StFileEventTriggerEnd -Option Constant -Scope Script -Value "`n`t`t</EventTrigger>"
-Set-Variable -Name StFileTriggersEnd -Option Constant -Scope Script -Value "`n`t</Triggers>"
-Set-Variable -Name StFilePrincipalsStart -Option Constant -Scope Script -Value "`n`t<Principals>"
-Set-Variable -Name StFilePrincipalStart -Option Constant -Scope Script -Value "`n`t`t<Principal id=`"Author`">"
-Set-Variable -Name StFileUserIdStart -Option Constant -Scope Script -Value "`n`t`t`t<UserId>"
-Set-Variable -Name StFileLogonType -Option Constant -Scope Script -Value "`n`t`t`t<LogonType>InteractiveToken</LogonType>"
-Set-Variable -Name StFileUserIdEnd -Option Constant -Scope Script -Value "</UserId>"
-Set-Variable -Name StFilePrincipalEnd -Option Constant -Scope Script -Value "`n`t`t</Principal>"
-Set-Variable -Name StFilePrincipalsEnd -Option Constant -Scope Script -Value "`n`t</Principals>"
-Set-Variable -Name StFileSettingsBlob -Option Constant -Scope Script -Value "`n`t<Settings>`n`t`t<MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>`n`t`t<DisallowStartIfOnBatteries>true</DisallowStartIfOnBatteries>`n`t`t<StopIfGoingOnBatteries>true</StopIfGoingOnBatteries>`n`t`t<AllowHardTerminate>true</AllowHardTerminate>`n`t`t<StartWhenAvailable>false</StartWhenAvailable>`n`t`t<RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>`n`t`t<IdleSettings>`n`t`t`t<StopOnIdleEnd>true</StopOnIdleEnd>`n`t`t`t<RestartOnIdle>false</RestartOnIdle>`n`t`t</IdleSettings>`n`t`t<AllowStartOnDemand>true</AllowStartOnDemand>`n`t`t<Enabled>false</Enabled>`n`t`t<Hidden>false</Hidden>`n`t`t<RunOnlyIfIdle>false</RunOnlyIfIdle>`n`t`t<WakeToRun>false</WakeToRun>`n`t`t<ExecutionTimeLimit>P3D</ExecutionTimeLimit>`n`t`t<Priority>7</Priority>`n`t</Settings>"
-Set-Variable -Name StFileActionsStart -Option Constant -Scope Script -Value "`n`t<Actions Context=`"Author`">"
-Set-Variable -Name StFileExecStart -Option Constant -Scope Script -Value "`n`t`t<Exec>"
-Set-Variable -Name StFileCommandStart -Option Constant -Scope Script -Value "`n`t`t`t<Command>"
-Set-Variable -Name StFileCommandEnd -Option Constant -Scope Script -Value "</Command>"
-Set-Variable -Name StFileArgumentsStart -Option Constant -Scope Script -Value "`n`t`t`t<Arguments>"
-Set-Variable -Name StFileArgumentsEnd -Option Constant -Scope Script -Value "</Arguments>"
-Set-Variable -Name StFileExecEnd -Option Constant -Scope Script -Value "`n`t`t</Exec>"
-Set-Variable -Name StFileActionsEnd -Option Constant -Scope Script -Value "`n`t</Actions>"
-Set-Variable -Name StFileTaskEnd -Option Constant -Scope Script -Value "`n</Task>"
-
-Function Validate-Input () {
-    if (Test-Path -Path $WECSubscriptionsPath -PathType Container) {
-        $script:WECSubscriptionsPath = Resolve-Path $WECSubscriptionsPath
-    } else {
-        Write-Error "The provided WEC subscriptions path does not exist: $WECSubscriptionsPath"
-    }
-
-    $script:Subscriptions = Get-ChildItem -Path $WECSubscriptionsPath -Recurse -File -Include "*.xml"
-    if (!($Subscriptions)) {
-        Write-Error "No WEC subscriptions found in the given path: $WECSubscriptionsPath"
-    }
-
-    if (Test-Path -Path $ScheduledTasksPath -PathType Container -IsValid) {
-        if (!(Test-Path -Path $ScheduledTasksPath -PathType Container)) {
-            Write-Verbose "Creating the specified directory to store Scheduled Tasks: $ScheduledTasksPath"
-            $null = New-Item -Path $ScheduledTasksPath -ItemType Directory
-        }
-        $script:ScheduledTasksPath = Resolve-Path $ScheduledTasksPath
-    } else {
-        Write-Error "The provided Scheduled Tasks path is invalid: $ScheduledTasksPath"
-    }
-}
-
-Function Parse-Subscription ([IO.FileInfo] $Subscription) {
-    $Xml = [xml] (Get-Content $Subscription.FullName)
-    $Query = [xml] $Xml.Subscription.Query.InnerText
-    $QueryIds = $Query.Querylist.ChildNodes
-
-    foreach ($QueryId in $QueryIds) {
-        $SelectElements = $QueryId.Select
-        if (!($SelectElements)) {
-            Write-Warning ("No Select elements in Query Id " + $QueryId.Id + 
-                           " for subscription: " + $Subscription.Name)
-        } else {
-            foreach ($SelectElement in $SelectElements) {
-                $ScheduledTask = New-ScheduledTask $SelectElement
-                if ($ScheduledTask) {
-                    $StCategory = [IO.Path]::GetFileNameWithoutExtension($Subscription.FullName)
-                    $StName = $ScheduledTask[0]
-                    $StData = $ScheduledTask[1]
-                    Export-ScheduledTask $StCategory $StName $StData
-                }
-            }
-        }
-    }
-}
-
-Function New-ScheduledTask ([Xml.XmlElement] $SelectElement) {
-    # Attempt to extract the Scheduled Task name
-    $StName = Extract-SelectComment $SelectElement
-    if (!($StName)) {
-        Write-Warning ("Couldn't find the identifying comment for Select element:`n" + $SelectElement.OuterXML)
+Function Get-SelectComment ([Xml.XmlElement] $SelectElement) {
+    if (!($SelectElement.PreviousSibling)) {
         return
     }
 
+    if ($SelectElement.PreviousSibling.GetType().Name -ne "XmlComment") {
+        return
+    }
+
+    $SelectComment = $SelectElement.PreviousSibling.Innertext.Trim()
+    Write-Debug "Found comment of Select element: $SelectComment"
+    return $SelectComment
+}
+
+Function New-ScheduledTask ([Xml.XmlElement] $SelectElement, [String] $StPath) {
     # Extract the XPath query from the element
     $StXpath = $SelectElement.InnerText
 
@@ -190,58 +115,189 @@ Function New-ScheduledTask ([Xml.XmlElement] $SelectElement) {
     $CommandArguments = [Security.SecurityElement]::Escape($CommandArguments)
 
     # Construct the Scheduled Task
-    $StData = $StFileXmlDeclaration
-    $StData += $StFileTaskStart
-    $StData += $StFileRegistrationInfoStart
-    $StData += $StFileDateStart + $StDate + $StFileDateEnd
-    $StData += $StFileAuthorStart + $StAuthor + $StFileAuthorEnd
-    $StData += $StFileRegistrationInfoEnd
-    $StData += $StFileTriggersStart
-    $StData += $StFileEventTriggerStart
-    $StData += $StFileEnabledStart + $StEnabled + $StFileEnabledEnd
-    $StData += $StFileSubscriptionStart + $StSubscription + $StFileSubscriptionEnd
-    $StData += $StFileEventTriggerEnd
-    $StData += $StFileTriggersEnd
-    $StData += $StFilePrincipalsStart
-    $StData += $StFilePrincipalStart
-    $StData += $StFileUserIdStart + "S-1-5-19" + $StFileUserIdEnd # LOCAL SERVICE
-    $StData += $StFileLogonType
-    $StData += $StFilePrincipalEnd
-    $StData += $StFilePrincipalsEnd
-    $StData += $StFileSettingsBlob
-    $StData += $StFileActionsStart
-    $StData += $StFileExecStart
-    $StData += $StFileCommandStart + $ExecutedCommand + $StFileCommandEnd
+    $XmlDoc = New-Object Xml.XmlDocument
+    $XmlDeclaration = $XmlDoc.CreateXmlDeclaration("1.0", "UTF-16", $null)
+    $XmlDoc.AppendChild($XmlDeclaration) | Out-Null
+
+    $XmlTask = $XmlDoc.CreateElement("Task")
+    $XmlTask.SetAttribute("version", "1.2")
+    $XmlTask.SetAttribute("xmlns", "http://schemas.microsoft.com/windows/2004/02/mit/task")
+    $XmlDoc.AppendChild($XmlTask) | Out-Null
+
+    $XmlRegistrationInfo = $XmlDoc.CreateElement("RegistrationInfo")
+    $XmlTask.AppendChild($XmlRegistrationInfo) | Out-Null
+
+    $XmlDate = $XmlDoc.CreateElement("Date")
+    $XmlDate.InnerText = $StDate
+    $XmlRegistrationInfo.AppendChild($XmlDate) | Out-Null
+
+    $XmlAuthor = $XmlDoc.CreateElement("Author")
+    $XmlAuthor.InnerText = $StAuthor
+    $XmlRegistrationInfo.AppendChild($XmlAuthor) | Out-Null
+
+    $XmlTriggers = $XmlDoc.CreateElement("Triggers")
+    $XmlTask.AppendChild($XmlTriggers) | Out-Null
+
+    $XmlEventTrigger = $XmlDoc.CreateElement("EventTrigger")
+    $XmlTriggers.AppendChild($XmlEventTrigger) | Out-Null
+
+    $XmlEnabled = $XmlDoc.CreateElement("Enabled")
+    $XmlEnabled.InnerText = $StEnabled
+    $XmlEventTrigger.AppendChild($XmlEnabled) | Out-Null
+
+    $XmlSubscription = $XmlDoc.CreateElement("Subscription")
+    $XmlSubscription.InnerText = $StSubscription
+    $XmlEventTrigger.AppendChild($XmlSubscription) | Out-Null
+
+    $XmlPrincipals = $XmlDoc.CreateElement("Principals")
+    $XmlTask.AppendChild($XmlPrincipals) | Out-Null
+
+    $XmlPrincipal = $XmlDoc.CreateElement("Principal")
+    $XmlPrincipal.SetAttribute("id", "Author")
+    $XmlPrincipals.AppendChild($XmlPrincipal) | Out-Null
+
+    $XmlUserId = $XmlDoc.CreateElement("UserId")
+    $XmlUserId.InnerText = "S-1-5-19" # LOCAL SERVICE
+    $XmlPrincipal.AppendChild($XmlUserId) | Out-Null
+
+    $XmlLogonType = $XmlDoc.CreateElement("LogonType")
+    $XmlLogonType.InnerText = "InteractiveToken"
+    $XmlPrincipal.AppendChild($XmlLogonType) | Out-Null
+
+    $XmlSettings = $XmlDoc.CreateElement("Settings")
+    $XmlTask.AppendChild($XmlSettings) | Out-Null
+
+    $XmlMultipleInstancesPolicy = $XmlDoc.CreateElement("MultipleInstancesPolicy")
+    $XmlMultipleInstancesPolicy.InnerText = "IgnoreNew"
+    $XmlSettings.AppendChild($XmlMultipleInstancesPolicy) | Out-Null
+
+    $XmlDisallowStartIfOnBatteries = $XmlDoc.CreateElement("DisallowStartIfOnBatteries")
+    $XmlDisallowStartIfOnBatteries.InnerText = "false"
+    $XmlSettings.AppendChild($XmlDisallowStartIfOnBatteries) | Out-Null
+
+    $XmlStopIfGoingOnBatteries = $XmlDoc.CreateElement("StopIfGoingOnBatteries")
+    $XmlStopIfGoingOnBatteries.InnerText = "false"
+    $XmlSettings.AppendChild($XmlStopIfGoingOnBatteries) | Out-Null
+
+    $XmlAllowHardTerminate = $XmlDoc.CreateElement("AllowHardTerminate")
+    $XmlAllowHardTerminate.InnerText = "true"
+    $XmlSettings.AppendChild($XmlAllowHardTerminate) | Out-Null
+
+    $XmlStartWhenAvailable = $XmlDoc.CreateElement("StartWhenAvailable")
+    $XmlStartWhenAvailable.InnerText = "false"
+    $XmlSettings.AppendChild($XmlStartWhenAvailable) | Out-Null
+
+    $XmlRunOnlyIfNetworkAvailable = $XmlDoc.CreateElement("RunOnlyIfNetworkAvailable")
+    $XmlRunOnlyIfNetworkAvailable.InnerText = "true"
+    $XmlSettings.AppendChild($XmlRunOnlyIfNetworkAvailable) | Out-Null
+
+    $XmlIdleSettings = $XmlDoc.CreateElement("IdleSettings")
+    $XmlSettings.AppendChild($XmlIdleSettings) | Out-Null
+
+    $XmlStopOnIdleEnd = $XmlDoc.CreateElement("StopOnIdleEnd")
+    $XmlStopOnIdleEnd.InnerText = "false"
+    $XmlIdleSettings.AppendChild($XmlStopOnIdleEnd) | Out-Null
+
+    $XmlRestartOnIdle = $XmlDoc.CreateElement("RestartOnIdle")
+    $XmlRestartOnIdle.InnerText = "false"
+    $XmlIdleSettings.AppendChild($XmlRestartOnIdle) | Out-Null
+
+    $XmlAllowStartOnDemand = $XmlDoc.CreateElement("AllowStartOnDemand")
+    $XmlAllowStartOnDemand.InnerText = "true"
+    $XmlSettings.AppendChild($XmlAllowStartOnDemand) | Out-Null
+
+    $XmlSettings.AppendChild($XmlEnabled) | Out-Null # Reuse earlier element
+
+    $XmlHidden = $XmlDoc.CreateElement("Hidden")
+    $XmlHidden.InnerText = "false"
+    $XmlSettings.AppendChild($XmlHidden) | Out-Null
+
+    $XmlRunOnlyIfIdle = $XmlDoc.CreateElement("RunOnlyIfIdle")
+    $XmlRunOnlyIfIdle.InnerText = "false"
+    $XmlSettings.AppendChild($XmlRunOnlyIfIdle) | Out-Null
+
+    $XmlWakeToRun = $XmlDoc.CreateElement("WakeToRun")
+    $XmlWakeToRun.InnerText = "false"
+    $XmlSettings.AppendChild($XmlWakeToRun) | Out-Null
+
+    $XmlExecutionTimeLimit = $XmlDoc.CreateElement("ExecutionTimeLimit")
+    $XmlExecutionTimeLimit.InnerText = "P3D"
+    $XmlSettings.AppendChild($XmlExecutionTimeLimit) | Out-Null
+
+    $XmlPriority = $XmlDoc.CreateElement("Priority")
+    $XmlPriority.InnerText = "7"
+    $XmlSettings.AppendChild($XmlPriority) | Out-Null
+
+    $XmlActions = $XmlDoc.CreateElement("Actions")
+    $XmlActions.SetAttribute("Context", "Author")
+    $XmlTask.AppendChild($XmlActions) | Out-Null
+
+    $XmlExec = $XmlDoc.CreateElement("Exec")
+    $XmlActions.AppendChild($XmlExec) | Out-Null
+
+    $XmlCommand = $XmlDoc.CreateElement("Command")
+    $XmlCommand.InnerText = $ExecutedCommand
+    $XmlExec.AppendChild($XmlCommand) | Out-Null
+
     if ($CommandArguments) {
-        $StData += $StFileArgumentsStart + $CommandArguments + $StFileArgumentsEnd
+        $XmlArguments = $XmlDoc.CreateElement("Arguments")
+        $XmlArguments.InnerText = $CommandArguments
+        $XmlExec.AppendChild($XmlArguments) | Out-Null
     }
-    $StData += $StFileExecEnd
-    $StData += $StFileActionsEnd
-    $StData += $StFileTaskEnd
-    
-    # Return the generated XML as well as the extracted name
-    return [String[]] $ScheduledTask = $StName, $StData
+
+    # Save the generated Scheduled Task
+    $XmlDoc.Save($StPath)
 }
 
-Function Export-ScheduledTask ([String] $StCategory, [String] $StName, [String] $StData) {
-    $StFile = "$StCategory - $StName.xml"
+Function Parse-Subscription ([IO.FileInfo] $Subscription) {
+    $Xml = [xml] (Get-Content $Subscription.FullName)
+    $Query = [xml] $Xml.Subscription.Query.InnerText
+    $QueryIds = $Query.Querylist.ChildNodes
 
-    $StPath = Join-Path $ScheduledTasksPath $StFile
-    Out-File -FilePath $StPath -Encoding UTF8 -InputObject $StData -Force
+    foreach ($QueryId in $QueryIds) {
+        $SelectElements = $QueryId.Select
+        if (!($SelectElements)) {
+            Write-Warning ("No Select elements in Query Id " + $QueryId.Id + 
+                           " for subscription: " + $Subscription.Name)
+        } else {
+            foreach ($SelectElement in $SelectElements) {
+                $StName = Get-SelectComment $SelectElement
+                if (!($StName)) {
+                    Write-Warning ("Couldn't find the identifying comment for Select element:`n" + $SelectElement.OuterXML)
+                    break
+                }
+
+                $StCategory = [IO.Path]::GetFileNameWithoutExtension($Subscription.FullName)
+                $StFile = "$StCategory - $StName.xml"
+                $StPath = Join-Path $ScheduledTasksPath $StFile
+
+                New-ScheduledTask $SelectElement $StPath
+            }
+        }
+    }
 }
 
-Function Extract-SelectComment ([Xml.XmlElement] $SelectElement) {
-    if (!($SelectElement.PreviousSibling)) {
-        return
+Function Validate-Input () {
+    if (Test-Path -Path $WECSubscriptionsPath -PathType Container) {
+        $script:WECSubscriptionsPath = Resolve-Path $WECSubscriptionsPath
+    } else {
+        Write-Error "The provided WEC subscriptions path does not exist: $WECSubscriptionsPath"
     }
 
-    if ($SelectElement.PreviousSibling.GetType().Name -ne "XmlComment") {
-        return
+    $script:Subscriptions = Get-ChildItem -Path $WECSubscriptionsPath -Recurse -File -Include "*.xml"
+    if (!($Subscriptions)) {
+        Write-Error "No WEC subscriptions found in the given path: $WECSubscriptionsPath"
     }
 
-    $SelectComment = $SelectElement.PreviousSibling.Innertext.Trim()
-    Write-Debug "Found comment of Select element: $SelectComment"
-    return $SelectComment
+    if (Test-Path -Path $ScheduledTasksPath -PathType Container -IsValid) {
+        if (!(Test-Path -Path $ScheduledTasksPath -PathType Container)) {
+            Write-Verbose "Creating the specified directory to store Scheduled Tasks: $ScheduledTasksPath"
+            $null = New-Item -Path $ScheduledTasksPath -ItemType Directory
+        }
+        $script:ScheduledTasksPath = Resolve-Path $ScheduledTasksPath
+    } else {
+        Write-Error "The provided Scheduled Tasks path is invalid: $ScheduledTasksPath"
+    }
 }
 
 # Additional sanity checking
