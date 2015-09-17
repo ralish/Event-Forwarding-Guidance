@@ -58,14 +58,6 @@ Param(
 # Ensure that any errors we receive are considered fatal
 $ErrorActionPreference = 'Stop'
 
-# Constants of XPath Query XML data used during assembly
-Set-Variable -Name XpQueryListStart -Option Constant -Scope Script -Value "`n`t`t`t`t<QueryList>"
-Set-Variable -Name XpQueryIdStart -Option Constant -Scope Script -Value "`n`t`t`t`t`t<Query Id=`"0`">"
-Set-Variable -Name XpSelectPathStart -Option Constant -Scope Script -Value "`n    <Select Path=`"ForwardedEvents`">"
-Set-Variable -Name XpSelectPathEnd -Option Constant -Scope Script -Value "</Select>"
-Set-Variable -Name XpQueryIdEnd -Option Constant -Scope Script -Value "`n`t`t`t`t`t</Query>"
-Set-Variable -Name XpQueryListEnd -Option Constant -Scope Script -Value "`n`t`t`t`t</QueryList>"
-
 Function Get-SelectComment ([Xml.XmlElement] $SelectElement) {
     if (!($SelectElement.PreviousSibling)) {
         return
@@ -81,9 +73,6 @@ Function Get-SelectComment ([Xml.XmlElement] $SelectElement) {
 }
 
 Function New-ScheduledTask ([Xml.XmlElement] $SelectElement, [String] $StPath) {
-    # Extract the XPath query from the element
-    $StXpath = $SelectElement.InnerText
-
     # Get the current date & time in round-trip format for timestamp
     $StDate = Get-Date -Format o
 
@@ -97,156 +86,161 @@ Function New-ScheduledTask ([Xml.XmlElement] $SelectElement, [String] $StPath) {
         $StEnabled = "false"
     }
 
-    # The extracted query is for selecting events on remote systems, but
-    # we'll be creating the Scheduled Task on the Event Collector. So we
-    # must adjust the provided query to use the Forwarded Events log.
-    $StSelectQuery += $XpSelectPathStart + $StXpath + $XpSelectPathEnd
-
-    # Build the inner Subscription query used as the event trigger
-    $StSubscription = $XpQueryListStart
-    $StSubscription += $XpQueryIdStart
-    $StSubscription += $StSelectQuery
-    $StSubscription += $XpQueryIdEnd
-    $StSubscription += $XpQueryListEnd
-
-    # XML escape the subscription query, command & any arguments
-    $StSubscription = [Security.SecurityElement]::Escape($StSubscription)
+    # XML escape the command & any arguments
     $ExecutedCommand = [Security.SecurityElement]::Escape($ExecutedCommand)
     $CommandArguments = [Security.SecurityElement]::Escape($CommandArguments)
 
+    # Construct the Subscription Query used as the Event Trigger
+    $EtXmlDoc = New-Object Xml.XmlDocument
+
+    $EtXmlQueryList = $EtXmlDoc.CreateElement("QueryList")
+    $EtXmlDoc.AppendChild($EtXmlQueryList) | Out-Null
+
+    $EtXmlQuery = $EtXmlDoc.CreateElement("Query")
+    $EtXmlQuery.SetAttribute("Id", "0")
+    $EtXmlQueryList.AppendChild($EtXmlQuery) | Out-Null
+
+    $EtXmlSelect = $EtXmlDoc.CreateElement("Select")
+    $EtXmlSelect.SetAttribute("Path", "ForwardedEvents")
+    $EtXmlSelect.InnerText = $StXpath
+    $EtXmlQuery.AppendChild($EtXmlSelect) | Out-Null
+
+    # Escape the subscription query as we need to embed it in more XML!
+    $StSubscription = [Security.SecurityElement]::Escape($EtXmlDoc.OuterXml)
+
     # Construct the Scheduled Task
-    $XmlDoc = New-Object Xml.XmlDocument
-    $XmlDeclaration = $XmlDoc.CreateXmlDeclaration("1.0", "UTF-16", $null)
-    $XmlDoc.AppendChild($XmlDeclaration) | Out-Null
+    $StXmlDoc = New-Object Xml.XmlDocument
+    $StXmlDeclaration = $StXmlDoc.CreateXmlDeclaration("1.0", "UTF-16", $null)
+    $StXmlDoc.AppendChild($StXmlDeclaration) | Out-Null
 
-    $XmlTask = $XmlDoc.CreateElement("Task")
-    $XmlTask.SetAttribute("version", "1.2")
-    $XmlTask.SetAttribute("xmlns", "http://schemas.microsoft.com/windows/2004/02/mit/task")
-    $XmlDoc.AppendChild($XmlTask) | Out-Null
+    $StXmlTask = $StXmlDoc.CreateElement("Task")
+    $StXmlTask.SetAttribute("version", "1.2")
+    $StXmlTask.SetAttribute("xmlns", "http://schemas.microsoft.com/windows/2004/02/mit/task")
+    $StXmlDoc.AppendChild($StXmlTask) | Out-Null
 
-    $XmlRegistrationInfo = $XmlDoc.CreateElement("RegistrationInfo")
-    $XmlTask.AppendChild($XmlRegistrationInfo) | Out-Null
+    $StXmlRegistrationInfo = $StXmlDoc.CreateElement("RegistrationInfo")
+    $StXmlTask.AppendChild($StXmlRegistrationInfo) | Out-Null
 
-    $XmlDate = $XmlDoc.CreateElement("Date")
-    $XmlDate.InnerText = $StDate
-    $XmlRegistrationInfo.AppendChild($XmlDate) | Out-Null
+    $StXmlDate = $StXmlDoc.CreateElement("Date")
+    $StXmlDate.InnerText = $StDate
+    $StXmlRegistrationInfo.AppendChild($StXmlDate) | Out-Null
 
-    $XmlAuthor = $XmlDoc.CreateElement("Author")
-    $XmlAuthor.InnerText = $StAuthor
-    $XmlRegistrationInfo.AppendChild($XmlAuthor) | Out-Null
+    $StXmlAuthor = $StXmlDoc.CreateElement("Author")
+    $StXmlAuthor.InnerText = $StAuthor
+    $StXmlRegistrationInfo.AppendChild($StXmlAuthor) | Out-Null
 
-    $XmlTriggers = $XmlDoc.CreateElement("Triggers")
-    $XmlTask.AppendChild($XmlTriggers) | Out-Null
+    $StXmlTriggers = $StXmlDoc.CreateElement("Triggers")
+    $StXmlTask.AppendChild($StXmlTriggers) | Out-Null
 
-    $XmlEventTrigger = $XmlDoc.CreateElement("EventTrigger")
-    $XmlTriggers.AppendChild($XmlEventTrigger) | Out-Null
+    $StXmlEventTrigger = $StXmlDoc.CreateElement("EventTrigger")
+    $StXmlTriggers.AppendChild($StXmlEventTrigger) | Out-Null
 
-    $XmlEnabled = $XmlDoc.CreateElement("Enabled")
-    $XmlEnabled.InnerText = $StEnabled
-    $XmlEventTrigger.AppendChild($XmlEnabled) | Out-Null
+    $StXmlEnabled = $StXmlDoc.CreateElement("Enabled")
+    $StXmlEnabled.InnerText = $StEnabled
+    $StXmlEventTrigger.AppendChild($StXmlEnabled) | Out-Null
 
-    $XmlSubscription = $XmlDoc.CreateElement("Subscription")
-    $XmlSubscription.InnerText = $StSubscription
-    $XmlEventTrigger.AppendChild($XmlSubscription) | Out-Null
+    $StXmlSubscription = $StXmlDoc.CreateElement("Subscription")
+    $StXmlSubscription.InnerText = $StSubscription
+    $StXmlEventTrigger.AppendChild($StXmlSubscription) | Out-Null
 
-    $XmlPrincipals = $XmlDoc.CreateElement("Principals")
-    $XmlTask.AppendChild($XmlPrincipals) | Out-Null
+    $StXmlPrincipals = $StXmlDoc.CreateElement("Principals")
+    $StXmlTask.AppendChild($StXmlPrincipals) | Out-Null
 
-    $XmlPrincipal = $XmlDoc.CreateElement("Principal")
-    $XmlPrincipal.SetAttribute("id", "Author")
-    $XmlPrincipals.AppendChild($XmlPrincipal) | Out-Null
+    $StXmlPrincipal = $StXmlDoc.CreateElement("Principal")
+    $StXmlPrincipal.SetAttribute("id", "Author")
+    $StXmlPrincipals.AppendChild($StXmlPrincipal) | Out-Null
 
-    $XmlUserId = $XmlDoc.CreateElement("UserId")
-    $XmlUserId.InnerText = "S-1-5-19" # LOCAL SERVICE
-    $XmlPrincipal.AppendChild($XmlUserId) | Out-Null
+    $StXmlUserId = $StXmlDoc.CreateElement("UserId")
+    $StXmlUserId.InnerText = "S-1-5-19" # LOCAL SERVICE
+    $StXmlPrincipal.AppendChild($StXmlUserId) | Out-Null
 
-    $XmlLogonType = $XmlDoc.CreateElement("LogonType")
-    $XmlLogonType.InnerText = "InteractiveToken"
-    $XmlPrincipal.AppendChild($XmlLogonType) | Out-Null
+    $StXmlLogonType = $StXmlDoc.CreateElement("LogonType")
+    $StXmlLogonType.InnerText = "InteractiveToken"
+    $StXmlPrincipal.AppendChild($StXmlLogonType) | Out-Null
 
-    $XmlSettings = $XmlDoc.CreateElement("Settings")
-    $XmlTask.AppendChild($XmlSettings) | Out-Null
+    $StXmlSettings = $StXmlDoc.CreateElement("Settings")
+    $StXmlTask.AppendChild($StXmlSettings) | Out-Null
 
-    $XmlMultipleInstancesPolicy = $XmlDoc.CreateElement("MultipleInstancesPolicy")
-    $XmlMultipleInstancesPolicy.InnerText = "IgnoreNew"
-    $XmlSettings.AppendChild($XmlMultipleInstancesPolicy) | Out-Null
+    $StXmlMultipleInstancesPolicy = $StXmlDoc.CreateElement("MultipleInstancesPolicy")
+    $StXmlMultipleInstancesPolicy.InnerText = "IgnoreNew"
+    $StXmlSettings.AppendChild($StXmlMultipleInstancesPolicy) | Out-Null
 
-    $XmlDisallowStartIfOnBatteries = $XmlDoc.CreateElement("DisallowStartIfOnBatteries")
-    $XmlDisallowStartIfOnBatteries.InnerText = "false"
-    $XmlSettings.AppendChild($XmlDisallowStartIfOnBatteries) | Out-Null
+    $StXmlDisallowStartIfOnBatteries = $StXmlDoc.CreateElement("DisallowStartIfOnBatteries")
+    $StXmlDisallowStartIfOnBatteries.InnerText = "false"
+    $StXmlSettings.AppendChild($StXmlDisallowStartIfOnBatteries) | Out-Null
 
-    $XmlStopIfGoingOnBatteries = $XmlDoc.CreateElement("StopIfGoingOnBatteries")
-    $XmlStopIfGoingOnBatteries.InnerText = "false"
-    $XmlSettings.AppendChild($XmlStopIfGoingOnBatteries) | Out-Null
+    $StXmlStopIfGoingOnBatteries = $StXmlDoc.CreateElement("StopIfGoingOnBatteries")
+    $StXmlStopIfGoingOnBatteries.InnerText = "false"
+    $StXmlSettings.AppendChild($StXmlStopIfGoingOnBatteries) | Out-Null
 
-    $XmlAllowHardTerminate = $XmlDoc.CreateElement("AllowHardTerminate")
-    $XmlAllowHardTerminate.InnerText = "true"
-    $XmlSettings.AppendChild($XmlAllowHardTerminate) | Out-Null
+    $StXmlAllowHardTerminate = $StXmlDoc.CreateElement("AllowHardTerminate")
+    $StXmlAllowHardTerminate.InnerText = "true"
+    $StXmlSettings.AppendChild($StXmlAllowHardTerminate) | Out-Null
 
-    $XmlStartWhenAvailable = $XmlDoc.CreateElement("StartWhenAvailable")
-    $XmlStartWhenAvailable.InnerText = "false"
-    $XmlSettings.AppendChild($XmlStartWhenAvailable) | Out-Null
+    $StXmlStartWhenAvailable = $StXmlDoc.CreateElement("StartWhenAvailable")
+    $StXmlStartWhenAvailable.InnerText = "false"
+    $StXmlSettings.AppendChild($StXmlStartWhenAvailable) | Out-Null
 
-    $XmlRunOnlyIfNetworkAvailable = $XmlDoc.CreateElement("RunOnlyIfNetworkAvailable")
-    $XmlRunOnlyIfNetworkAvailable.InnerText = "true"
-    $XmlSettings.AppendChild($XmlRunOnlyIfNetworkAvailable) | Out-Null
+    $StXmlRunOnlyIfNetworkAvailable = $StXmlDoc.CreateElement("RunOnlyIfNetworkAvailable")
+    $StXmlRunOnlyIfNetworkAvailable.InnerText = "true"
+    $StXmlSettings.AppendChild($StXmlRunOnlyIfNetworkAvailable) | Out-Null
 
-    $XmlIdleSettings = $XmlDoc.CreateElement("IdleSettings")
-    $XmlSettings.AppendChild($XmlIdleSettings) | Out-Null
+    $StXmlIdleSettings = $StXmlDoc.CreateElement("IdleSettings")
+    $StXmlSettings.AppendChild($StXmlIdleSettings) | Out-Null
 
-    $XmlStopOnIdleEnd = $XmlDoc.CreateElement("StopOnIdleEnd")
-    $XmlStopOnIdleEnd.InnerText = "false"
-    $XmlIdleSettings.AppendChild($XmlStopOnIdleEnd) | Out-Null
+    $StXmlStopOnIdleEnd = $StXmlDoc.CreateElement("StopOnIdleEnd")
+    $StXmlStopOnIdleEnd.InnerText = "false"
+    $StXmlIdleSettings.AppendChild($StXmlStopOnIdleEnd) | Out-Null
 
-    $XmlRestartOnIdle = $XmlDoc.CreateElement("RestartOnIdle")
-    $XmlRestartOnIdle.InnerText = "false"
-    $XmlIdleSettings.AppendChild($XmlRestartOnIdle) | Out-Null
+    $StXmlRestartOnIdle = $StXmlDoc.CreateElement("RestartOnIdle")
+    $StXmlRestartOnIdle.InnerText = "false"
+    $StXmlIdleSettings.AppendChild($StXmlRestartOnIdle) | Out-Null
 
-    $XmlAllowStartOnDemand = $XmlDoc.CreateElement("AllowStartOnDemand")
-    $XmlAllowStartOnDemand.InnerText = "true"
-    $XmlSettings.AppendChild($XmlAllowStartOnDemand) | Out-Null
+    $StXmlAllowStartOnDemand = $StXmlDoc.CreateElement("AllowStartOnDemand")
+    $StXmlAllowStartOnDemand.InnerText = "true"
+    $StXmlSettings.AppendChild($StXmlAllowStartOnDemand) | Out-Null
 
-    $XmlSettings.AppendChild($XmlEnabled) | Out-Null # Reuse earlier element
+    $StXmlSettings.AppendChild($StXmlEnabled) | Out-Null # Reuse earlier element
 
-    $XmlHidden = $XmlDoc.CreateElement("Hidden")
-    $XmlHidden.InnerText = "false"
-    $XmlSettings.AppendChild($XmlHidden) | Out-Null
+    $StXmlHidden = $StXmlDoc.CreateElement("Hidden")
+    $StXmlHidden.InnerText = "false"
+    $StXmlSettings.AppendChild($StXmlHidden) | Out-Null
 
-    $XmlRunOnlyIfIdle = $XmlDoc.CreateElement("RunOnlyIfIdle")
-    $XmlRunOnlyIfIdle.InnerText = "false"
-    $XmlSettings.AppendChild($XmlRunOnlyIfIdle) | Out-Null
+    $StXmlRunOnlyIfIdle = $StXmlDoc.CreateElement("RunOnlyIfIdle")
+    $StXmlRunOnlyIfIdle.InnerText = "false"
+    $StXmlSettings.AppendChild($StXmlRunOnlyIfIdle) | Out-Null
 
-    $XmlWakeToRun = $XmlDoc.CreateElement("WakeToRun")
-    $XmlWakeToRun.InnerText = "false"
-    $XmlSettings.AppendChild($XmlWakeToRun) | Out-Null
+    $StXmlWakeToRun = $StXmlDoc.CreateElement("WakeToRun")
+    $StXmlWakeToRun.InnerText = "false"
+    $StXmlSettings.AppendChild($StXmlWakeToRun) | Out-Null
 
-    $XmlExecutionTimeLimit = $XmlDoc.CreateElement("ExecutionTimeLimit")
-    $XmlExecutionTimeLimit.InnerText = "P3D"
-    $XmlSettings.AppendChild($XmlExecutionTimeLimit) | Out-Null
+    $StXmlExecutionTimeLimit = $StXmlDoc.CreateElement("ExecutionTimeLimit")
+    $StXmlExecutionTimeLimit.InnerText = "P3D"
+    $StXmlSettings.AppendChild($StXmlExecutionTimeLimit) | Out-Null
 
-    $XmlPriority = $XmlDoc.CreateElement("Priority")
-    $XmlPriority.InnerText = "7"
-    $XmlSettings.AppendChild($XmlPriority) | Out-Null
+    $StXmlPriority = $StXmlDoc.CreateElement("Priority")
+    $StXmlPriority.InnerText = "7"
+    $StXmlSettings.AppendChild($StXmlPriority) | Out-Null
 
-    $XmlActions = $XmlDoc.CreateElement("Actions")
-    $XmlActions.SetAttribute("Context", "Author")
-    $XmlTask.AppendChild($XmlActions) | Out-Null
+    $StXmlActions = $StXmlDoc.CreateElement("Actions")
+    $StXmlActions.SetAttribute("Context", "Author")
+    $StXmlTask.AppendChild($StXmlActions) | Out-Null
 
-    $XmlExec = $XmlDoc.CreateElement("Exec")
-    $XmlActions.AppendChild($XmlExec) | Out-Null
+    $StXmlExec = $StXmlDoc.CreateElement("Exec")
+    $StXmlActions.AppendChild($StXmlExec) | Out-Null
 
-    $XmlCommand = $XmlDoc.CreateElement("Command")
-    $XmlCommand.InnerText = $ExecutedCommand
-    $XmlExec.AppendChild($XmlCommand) | Out-Null
+    $StXmlCommand = $StXmlDoc.CreateElement("Command")
+    $StXmlCommand.InnerText = $ExecutedCommand
+    $StXmlExec.AppendChild($StXmlCommand) | Out-Null
 
     if ($CommandArguments) {
-        $XmlArguments = $XmlDoc.CreateElement("Arguments")
-        $XmlArguments.InnerText = $CommandArguments
-        $XmlExec.AppendChild($XmlArguments) | Out-Null
+        $StXmlArguments = $StXmlDoc.CreateElement("Arguments")
+        $StXmlArguments.InnerText = $CommandArguments
+        $StXmlExec.AppendChild($StXmlArguments) | Out-Null
     }
 
     # Save the generated Scheduled Task
-    $XmlDoc.Save($StPath)
+    $StXmlDoc.Save($StPath)
 }
 
 Function Parse-Subscription ([IO.FileInfo] $Subscription) {
