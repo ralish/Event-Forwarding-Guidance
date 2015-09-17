@@ -202,7 +202,7 @@ Function New-ScheduledTask ([Xml.XmlElement] $SelectElement, [String] $StPath) {
     $StXmlAllowStartOnDemand.InnerText = "true"
     $StXmlSettings.AppendChild($StXmlAllowStartOnDemand) | Out-Null
 
-    $StXmlSettings.AppendChild($StXmlEnabled) | Out-Null # Reuse earlier element
+    $StXmlSettings.AppendChild($StXmlEnabled.Clone()) | Out-Null # Reuse earlier element
 
     $StXmlHidden = $StXmlDoc.CreateElement("Hidden")
     $StXmlHidden.InnerText = "false"
