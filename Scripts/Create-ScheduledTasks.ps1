@@ -21,19 +21,28 @@
     .PARAMETER CommandArguments
     Specifies any arguments to be passed to the command to be executed by the Scheduled Task.
 
+    .PARAMETER AlertsEmailSmtpServer
+    Specifies the SMTP server to be used for email delivery.
+
+    .PARAMETER AlertsSenderEmailAddress
+    Specifies the sender email address for event alerts.
+
+    .PARAMETER AlertsRecipientEmailAddress
+    Specifies the recipient email address for event alerts.
+
     .PARAMETER EnableTask
     Specifies that the generated Scheduled Task should be set as enabled by default. On importing into a system the task will be immediately active.
 
     .NOTES
     While this script will automatically XML escape the provided command and any arguments, this will only ensure the Scheduled Task XML definition is valid. It does not guarantee the command and any provided arguments are correctly escaped for invocation by the Task Scheduler!
 
-    For example, if providing a PowerShell command, it's recommended to Base 64 encode its arguments and provide them to PowerShell via the "-EncodedCommand" parameter. This ensures there's no unintended interpretation of the arguments by the Windows API during parsing prior to invocation (i.e. before PowerShell is actually launched to execute the supplied script).
+    For example, if providing a PowerShell command, it's recommended to Base64 encode its arguments and provide them to PowerShell via the "-EncodedCommand" parameter. This ensures there's no unintended interpretation of the arguments by the Windows API during parsing prior to invocation (i.e. before PowerShell is actually launched to execute the supplied script).
 
     .LINK
     https://www.nsa.gov/ia/_files/app/Spotting_the_Adversary_with_Windows_Event_Log_Monitoring.pdf
 #>
 
-[CmdletBinding()]
+[CmdletBinding(DefaultParameterSetName='CustomCommand')]
 Param(
     [Parameter(Mandatory=$true)]
     [ValidateNotNullOrEmpty()]
@@ -43,13 +52,25 @@ Param(
     [ValidateNotNullOrEmpty()]
     [String]$ScheduledTasksPath='Scheduled Tasks',
 
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory=$true,ParameterSetName='CustomCommand')]
     [ValidateNotNullOrEmpty()]
     [String]$ExecutedCommand,
 
-    [Parameter(Mandatory=$false)]
+    [Parameter(Mandatory=$false,ParameterSetName='CustomCommand')]
     [ValidateNotNullOrEmpty()]
     [String]$CommandArguments,
+
+    [Parameter(Mandatory=$true,ParameterSetName='EmailAlerts')]
+    [ValidateNotNullOrEmpty()]
+    [String]$AlertsEmailSmtpServer,
+
+    [Parameter(Mandatory=$true,ParameterSetName='EmailAlerts')]
+    [ValidateNotNullOrEmpty()]
+    [String]$AlertsSenderEmailAddress,
+
+    [Parameter(Mandatory=$true,ParameterSetName='EmailAlerts')]
+    [ValidateNotNullOrEmpty()]
+    [String]$AlertsRecipientEmailAddress,
 
     [Parameter(Mandatory=$false)]
     [switch]$EnableTask
@@ -57,6 +78,20 @@ Param(
 
 # Ensure that any errors we receive are considered fatal
 $ErrorActionPreference = 'Stop'
+
+Function Get-EmailAlertsScript ([String] $FilterXml) {
+    $AlertCommand =
+@"
+`$Event = Get-WinEvent -MaxEvents 1 -FilterXml $FilterXml -ErrorAction SilentlyContinue
+if (`$Event) {
+    `$EventHtml = ConvertTo-Html -InputObject `$Event -As List -Property *
+    Send-MailMessage -SmtpServer "$AlertsEmailSmtpServer" -From "$AlertsSenderEmailAddress" -To "$AlertsRecipientEmailAddress" -Subject "Event Alert!" -Body (`$EventHtml | Out-String) -BodyAsHtml
+}
+"@
+
+    # Ensure the command is Base64 encoded
+    return [System.Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes("$AlertCommand"))
+}
 
 Function Get-SelectComment ([Xml.XmlElement] $SelectElement) {
     if (!($SelectElement.PreviousSibling)) {
@@ -109,6 +144,13 @@ Function New-ScheduledTask ([Xml.XmlElement] $SelectElement, [String] $StPath) {
 
     # Escape the subscription query as we need to embed it in more XML!
     $StSubscription = [Security.SecurityElement]::Escape($EtXmlDoc.OuterXml)
+
+    # Configure command & arguments if we're setting up email alerts
+    if ($AlertsEmailSmtpServer) {
+        $ExecutedCommand = "powershell"
+        $EmailAlertsScript = Get-EmailAlertsScript $EtXmlDoc.OuterXml
+        $CommandArguments = "-NoProfile -EncodedCommand `"$EmailAlertsScript`""
+    }
 
     # Construct the Scheduled Task
     $StXmlDoc = New-Object Xml.XmlDocument
