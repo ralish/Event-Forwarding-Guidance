@@ -82,7 +82,9 @@ $ErrorActionPreference = 'Stop'
 Function Get-EmailAlertsScript ([String] $FilterXml) {
     $AlertCommand =
 @"
-`$Event = Get-WinEvent -MaxEvents 1 -FilterXml $FilterXml -ErrorAction SilentlyContinue
+`$Event = Get-WinEvent -ErrorAction SilentlyContinue -MaxEvents 1 -FilterXml @"
+$FilterXml
+`"@
 if (`$Event) {
     `$EventHtml = ConvertTo-Html -InputObject `$Event -As List -Property *
     Send-MailMessage -SmtpServer "$AlertsEmailSmtpServer" -From "$AlertsSenderEmailAddress" -To "$AlertsRecipientEmailAddress" -Subject "Event Alert!" -Body (`$EventHtml | Out-String) -BodyAsHtml
