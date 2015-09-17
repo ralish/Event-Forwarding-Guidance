@@ -88,7 +88,9 @@ Function New-ScheduledTask ([Xml.XmlElement] $SelectElement, [String] $StPath) {
 
     # XML escape the command & any arguments
     $ExecutedCommand = [Security.SecurityElement]::Escape($ExecutedCommand)
-    $CommandArguments = [Security.SecurityElement]::Escape($CommandArguments)
+    if ($CommandArguments) {
+        $CommandArguments = [Security.SecurityElement]::Escape($CommandArguments)
+    }
 
     # Construct the Subscription Query used as the Event Trigger
     $EtXmlDoc = New-Object Xml.XmlDocument
