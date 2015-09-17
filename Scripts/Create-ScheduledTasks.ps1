@@ -121,12 +121,6 @@ Function New-ScheduledTask ([Xml.XmlElement] $SelectElement, [String] $StPath) {
         $StEnabled = "false"
     }
 
-    # XML escape the command & any arguments
-    $ExecutedCommand = [Security.SecurityElement]::Escape($ExecutedCommand)
-    if ($CommandArguments) {
-        $CommandArguments = [Security.SecurityElement]::Escape($CommandArguments)
-    }
-
     # Construct the Subscription Query used as the Event Trigger
     $EtXmlDoc = New-Object Xml.XmlDocument
 
@@ -141,9 +135,6 @@ Function New-ScheduledTask ([Xml.XmlElement] $SelectElement, [String] $StPath) {
     $EtXmlSelect.SetAttribute("Path", "ForwardedEvents")
     $EtXmlSelect.InnerText = $SelectElement.InnerText
     $EtXmlQuery.AppendChild($EtXmlSelect) | Out-Null
-
-    # Escape the subscription query as we need to embed it in more XML!
-    $StSubscription = [Security.SecurityElement]::Escape($EtXmlDoc.OuterXml)
 
     # Configure command & arguments if we're setting up email alerts
     if ($AlertsEmailSmtpServer) {
@@ -184,7 +175,7 @@ Function New-ScheduledTask ([Xml.XmlElement] $SelectElement, [String] $StPath) {
     $StXmlEventTrigger.AppendChild($StXmlEnabled) | Out-Null
 
     $StXmlSubscription = $StXmlDoc.CreateElement("Subscription")
-    $StXmlSubscription.InnerText = $StSubscription
+    $StXmlSubscription.InnerText = $EtXmlDoc.OuterXml
     $StXmlEventTrigger.AppendChild($StXmlSubscription) | Out-Null
 
     $StXmlPrincipals = $StXmlDoc.CreateElement("Principals")
