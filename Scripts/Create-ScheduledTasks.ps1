@@ -198,15 +198,15 @@ Function New-ScheduledTask ([Xml.XmlElement] $SelectElement, [String] $StPath) {
     $StXmlUserId.InnerText = "S-1-5-19" # LOCAL SERVICE
     $StXmlPrincipal.AppendChild($StXmlUserId) | Out-Null
 
-    $StXmlLogonType = $StXmlDoc.CreateElement("LogonType")
-    $StXmlLogonType.InnerText = "InteractiveToken"
-    $StXmlPrincipal.AppendChild($StXmlLogonType) | Out-Null
+    $StXmlRunLevel = $StXmlDoc.CreateElement("RunLevel")
+    $StXmlRunLevel.InnerText = "LeastPrivilege"
+    $StXmlPrincipal.AppendChild($StXmlRunLevel) | Out-Null
 
     $StXmlSettings = $StXmlDoc.CreateElement("Settings")
     $StXmlTask.AppendChild($StXmlSettings) | Out-Null
 
     $StXmlMultipleInstancesPolicy = $StXmlDoc.CreateElement("MultipleInstancesPolicy")
-    $StXmlMultipleInstancesPolicy.InnerText = "IgnoreNew"
+    $StXmlMultipleInstancesPolicy.InnerText = "Parallel"
     $StXmlSettings.AppendChild($StXmlMultipleInstancesPolicy) | Out-Null
 
     $StXmlDisallowStartIfOnBatteries = $StXmlDoc.CreateElement("DisallowStartIfOnBatteries")
@@ -226,7 +226,7 @@ Function New-ScheduledTask ([Xml.XmlElement] $SelectElement, [String] $StPath) {
     $StXmlSettings.AppendChild($StXmlStartWhenAvailable) | Out-Null
 
     $StXmlRunOnlyIfNetworkAvailable = $StXmlDoc.CreateElement("RunOnlyIfNetworkAvailable")
-    $StXmlRunOnlyIfNetworkAvailable.InnerText = "true"
+    $StXmlRunOnlyIfNetworkAvailable.InnerText = "false"
     $StXmlSettings.AppendChild($StXmlRunOnlyIfNetworkAvailable) | Out-Null
 
     $StXmlIdleSettings = $StXmlDoc.CreateElement("IdleSettings")
@@ -259,7 +259,7 @@ Function New-ScheduledTask ([Xml.XmlElement] $SelectElement, [String] $StPath) {
     $StXmlSettings.AppendChild($StXmlWakeToRun) | Out-Null
 
     $StXmlExecutionTimeLimit = $StXmlDoc.CreateElement("ExecutionTimeLimit")
-    $StXmlExecutionTimeLimit.InnerText = "P3D"
+    $StXmlExecutionTimeLimit.InnerText = "PT1H" # 1 hour
     $StXmlSettings.AppendChild($StXmlExecutionTimeLimit) | Out-Null
 
     $StXmlPriority = $StXmlDoc.CreateElement("Priority")
