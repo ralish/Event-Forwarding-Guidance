@@ -86,8 +86,14 @@ Function Get-EmailAlertsScript ([String] $FilterXml) {
 $FilterXml
 `"@
 if (`$Event) {
-    `$EventHtml = ConvertTo-Html -InputObject `$Event -As List -Property *
-    Send-MailMessage -SmtpServer "$AlertsEmailSmtpServer" -From "$AlertsSenderEmailAddress" -To "$AlertsRecipientEmailAddress" -Subject "Event Alert!" -Body (`$EventHtml | Out-String) -BodyAsHtml
+    `$MachineName = `$Event.MachineName
+    `$EventHtml = ConvertTo-Html -InputObject `$Event -As List
+    Send-MailMessage -SmtpServer "$AlertsEmailSmtpServer" `
+                     -From "$AlertsSenderEmailAddress" `
+                     -To "$AlertsRecipientEmailAddress" `
+                     -Subject "Event Log Alert for `$MachineName" `
+                     -Body (`$EventHtml | Out-String) `
+                     -BodyAsHtml
 }
 "@
 
