@@ -45,26 +45,18 @@ Param(
 # Ensure that any errors we receive are considered fatal
 $ErrorActionPreference = 'Stop'
 
-# Constants of Custom View XML data used during assembly
-Set-Variable -Name CvFileViewerConfigStart -Option Constant -Scope Script -Value "<ViewerConfig>"
-Set-Variable -Name CvFileQueryConfigStart -Option Constant -Scope Script -Value "`n`t<QueryConfig>"
-Set-Variable -Name CvFileQueryParamsStart -Option Constant -Scope Script -Value "`n`t`t<QueryParams>"
-Set-Variable -Name CvFileUserQuery -Option Constant -Scope Script -Value "`n`t`t`t<UserQuery />"
-Set-Variable -Name CvFileQueryParamsEnd -Option Constant -Scope Script -Value "`n`t`t</QueryParams>"
-Set-Variable -Name CvFileQueryNodeStart -Option Constant -Scope Script -Value "`n`t`t<QueryNode>"
-Set-Variable -Name CvFileNameStart -Option Constant -Scope Script -Value "`n`t`t`t<Name>"
-Set-Variable -Name CvFileNameEnd -Option Constant -Scope Script -Value "</Name>"
-Set-Variable -Name CvFileSortConfig -Option Constant -Scope Script -Value "`n`t`t`t<SortConfig Asc=`"0`">`n`t`t`t`t<Column Name=`"Date and Time`" Type=`"System.DateTime`" Path=`"Event/System/TimeCreated/@SystemTime`" Visible=`"`">150</Column>`n`t`t`t</SortConfig>"
-Set-Variable -Name CvFileQueryListStart -Option Constant -Scope Script -Value "`n`t`t`t<QueryList>"
-Set-Variable -Name CvFileQueryIdStart -Option Constant -Scope Script -Value "`n`t`t`t`t<Query Id=`"0`">"
-Set-Variable -Name CvFileSelectPathStart -Option Constant -Scope Script -Value "`n    <Select Path=`"ForwardedEvents`">"
-Set-Variable -Name CvFileSelectPathEnd -Option Constant -Scope Script -Value "</Select>"
-Set-Variable -Name CvFileQueryIdEnd -Option Constant -Scope Script -Value "`n`t`t`t`t</Query>"
-Set-Variable -Name CvFileQueryListEnd -Option Constant -Scope Script -Value "`n`t`t`t</QueryList>"
-Set-Variable -Name CvFileQueryNodeEnd -Option Constant -Scope Script -Value "`n`t`t</QueryNode>"
-Set-Variable -Name CvFileQueryConfigEnd -Option Constant -Scope Script -Value "`n`t</QueryConfig>"
-Set-Variable -Name CvFileResultsConfig -Option Constant -Scope Script -Value "`n`t<ResultsConfig>`n`t`t<Columns>`n`t`t`t<Column Name=`"Level`" Type=`"System.String`" Path=`"Event/System/Level`" Visible=`"`">100</Column>`n`t`t`t<Column Name=`"Date and Time`" Type=`"System.DateTime`" Path=`"Event/System/TimeCreated/@SystemTime`" Visible=`"`">150</Column>`n`t`t`t<Column Name=`"Source`" Type=`"System.String`" Path=`"Event/System/Provider/@Name`" Visible=`"`">200</Column>`n`t`t`t<Column Name=`"Event ID`" Type=`"System.UInt32`" Path=`"Event/System/EventID`" Visible=`"`">75</Column>`n`t`t`t<Column Name=`"Task Category`" Type=`"System.String`" Path=`"Event/System/Task`" Visible=`"`">100</Column>`n`t`t`t<Column Name=`"Computer`" Type=`"System.String`" Path=`"Event/System/Computer`" Visible=`"`">250</Column>`n`t`t</Columns>`n`t</ResultsConfig>"
-Set-Variable -Name CvFileViewerConfigEnd -Option Constant -Scope Script -Value "`n</ViewerConfig>"
+Function Get-SelectComment ([Xml.XmlElement] $SelectElement) {
+    if (!($SelectElement.PreviousSibling)) {
+        return
+    }
+
+    if ($SelectElement.PreviousSibling.GetType().Name -ne "XmlComment") {
+        return
+    }
+
+    $SelectComment = $SelectElement.PreviousSibling.Innertext.Trim()
+    return $SelectComment
+}
 
 Function Get-TimeSpanDescription ([TimeSpan] $TimeSpan) {
     if ($TimeSpan.Days -gt 0 ) {
@@ -88,104 +80,163 @@ Function Get-TimeSpanDescription ([TimeSpan] $TimeSpan) {
     }
 }
 
-Function Parse-Subscription ([IO.FileInfo] $Subscription) {
-    $Xml = [xml] (Get-Content $Subscription.FullName)
-    $Query = [xml] $Xml.Subscription.Query.InnerText
-    $QueryIds = $Query.Querylist.ChildNodes
-
-    foreach ($QueryId in $QueryIds) {
-        $SelectElements = $QueryId.Select
-        if (!($SelectElements)) {
-            Write-Warning ("No Select elements in Query Id " + $QueryId.Id + 
-                           " for subscription: " + $Subscription.Name)
-        } else {
-            foreach ($SelectElement in $SelectElements) {
-                $CustomView = New-CustomView $SelectElement
-                if ($CustomView) {
-                    $CvCategory = [IO.Path]::GetFileNameWithoutExtension($Subscription.FullName)
-                    $CvName = $CustomView[0]
-                    $CvData = $CustomView[1]
-                    Export-CustomView $CvCategory $CvName $CvData
-                }
-            }
-        }
-    }
-}
-
-Function New-CustomView ([Xml.XmlElement] $SelectElement) {
-    # Attempt to extract the Custom View name
-    $CvName = Extract-SelectComment $SelectElement
-    if (!($CvName)) {
-        Write-Warning ("Couldn't find the identifying comment for Select element:`n" + $SelectElement.OuterXML)
-        return
-    }
-
+Function New-CustomView ([Xml.XmlElement] $SelectElement, [String] $CvPath) {
     # Extract the XPath query from the element
     $CvXpath = $SelectElement.InnerText
 
     # If we've provided a time filter we need to add it
     if ($TimeFilter) {
         $TimeDiff = $TimeFilter.TotalMilliseconds
-        $CvXpath += "  and`n      *[System[TimeCreated[timediff(@SystemTime) &lt;= $TimeDiff]]]"
+        $CvXpath += "  and`n      *[System[TimeCreated[timediff(@SystemTime) <= $TimeDiff]]]"
     }
 
-    # The extracted query is for selecting events on remote systems, but
-    # we'll be creating the Custom View on the Event Collector. As such,
-    # we must adjust the provided query to use the Forwarded Events log.
-    $CvQuery = $CvFileSelectPathStart + $CvXpath + $CvFileSelectPathEnd
-
     # Construct the Custom View
-    $CvData = $CvFileViewerConfigStart
-    $CvData += $CvFileQueryConfigStart
-    $CvData += $CvFileQueryParamsStart + $CvFileUserQuery + $CvFileQueryParamsEnd
-    $CvData += $CvFileQueryNodeStart
-    $CvData += $CvFileNameStart + $CvName + $CvFileNameEnd
-    $CvData += $CvFileSortConfig
-    $CvData += $CvFileQueryListStart
-    $CvData += $CvFileQueryIdStart
-    $CvData += $CvQuery
-    $CvData += $CvFileQueryIdEnd
-    $CvData += $CvFileQueryListEnd
-    $CvData += $CvFileQueryNodeEnd
-    $CvData += $CvFileQueryConfigEnd
-    $CvData += $CvFileResultsConfig
-    $CvData += $CvFileViewerConfigEnd
-    
-    # Return the generated XML as well as the extracted name
-    return [String[]] $CustomView = $CvName, $CvData
+    $CvXmlDoc = New-Object Xml.XmlDocument
+
+    $CvXmlViewerConfig = $CvXmlDoc.CreateElement("ViewerConfig")
+    $CvXmlDoc.AppendChild($CvXmlViewerConfig) | Out-Null
+
+    $CvXmlQueryConfig = $CvXmlDoc.CreateElement("QueryConfig")
+    $CvXmlViewerConfig.AppendChild($CvXmlQueryConfig) | Out-Null
+
+    $CvXmlQueryParams = $CvXmlDoc.CreateElement("QueryParams")
+    $CvXmlQueryConfig.AppendChild($CvXmlQueryParams) | Out-Null
+
+    $CvXmlUserQuery = $CvXmlDoc.CreateElement("UserQuery")
+    $CvXmlQueryParams.AppendChild($CvXmlUserQuery) | Out-Null
+
+    $CvXmlQueryNode = $CvXmlDoc.CreateElement("QueryNode")
+    $CvXmlQueryConfig.AppendChild($CvXmlQueryNode) | Out-Null
+
+    $CvXmlQueryName = $CvXmlDoc.CreateElement("Name")
+    $CvXmlQueryName.InnerText = $CvName
+    $CvXmlQueryNode.AppendChild($CvXmlQueryName) | Out-Null
+
+    $CvXmlSortConfig = $CvXmlDoc.CreateElement("SortConfig")
+    $CvXmlSortConfig.SetAttribute("Asc", "0")
+    $CvXmlQueryNode.AppendChild($CvXmlSortConfig) | Out-Null
+
+    $CvXmlSortColumn = $CvXmlDoc.CreateElement("Column")
+    $CvXmlSortColumn.SetAttribute("Name", "Date and Time")
+    $CvXmlSortColumn.SetAttribute("Type", "System.DateTime")
+    $CvXmlSortColumn.SetAttribute("Path", "Event/System/TimeCreated/@SystemTime")
+    $CvXmlSortColumn.SetAttribute("Visible", "")
+    $CvXmlSortColumn.InnerText = "150"
+    $CvXmlSortConfig.AppendChild($CvXmlSortColumn) | Out-Null
+
+    $CvXmlQueryList = $CvXmlDoc.CreateElement("QueryList")
+    $CvXmlQueryNode.AppendChild($CvXmlQueryList) | Out-Null
+
+    $CvXmlQuery = $CvXmlDoc.CreateElement("Query")
+    $CvXmlQuery.SetAttribute("Id", "0")
+    $CvXmlQuery.SetAttribute("Path", "ForwardedEvents")
+    $CvXmlQueryList.AppendChild($CvXmlQuery) | Out-Null
+
+    $CvXmlSelect = $CvXmlDoc.CreateElement("Select")
+    $CvXmlSelect.SetAttribute("Path", "ForwardedEvents")
+    $CvXmlSelect.InnerText = $CvXpath
+    $CvXmlQuery.AppendChild($CvXmlSelect) | Out-Null
+
+    $CvXmlResultsConfig = $CvXmlDoc.CreateElement("ResultsConfig")
+    $CvXmlViewerConfig.AppendChild($CvXmlResultsConfig) | Out-Null
+
+    $CvXmlColumns = $CvXmlDoc.CreateElement("Columns")
+    $CvXmlResultsConfig.AppendChild($CvXmlColumns) | Out-Null
+
+    $CvXmlColumnLevel = $CvXmlDoc.CreateElement("Column")
+    $CvXmlColumnLevel.SetAttribute("Name", "Level")
+    $CvXmlColumnLevel.SetAttribute("Type", "System.String")
+    $CvXmlColumnLevel.SetAttribute("Path", "Event/System/Level")
+    $CvXmlColumnLevel.SetAttribute("Visible", "")
+    $CvXmlColumnLevel.InnerText = "100"
+    $CvXmlColumns.AppendChild($CvXmlColumnLevel) | Out-Null
+
+    $CvXmlColumnDateAndTime = $CvXmlDoc.CreateElement("Column")
+    $CvXmlColumnDateAndTime.SetAttribute("Name", "Date and Time")
+    $CvXmlColumnDateAndTime.SetAttribute("Type", "System.DateTime")
+    $CvXmlColumnDateAndTime.SetAttribute("Path", "Event/System/TimeCreated/@SystemTime")
+    $CvXmlColumnDateAndTime.SetAttribute("Visible", "")
+    $CvXmlColumnDateAndTime.InnerText = "150"
+    $CvXmlColumns.AppendChild($CvXmlColumnDateAndTime) | Out-Null
+
+    $CvXmlColumnSource = $CvXmlDoc.CreateElement("Column")
+    $CvXmlColumnSource.SetAttribute("Name", "Source")
+    $CvXmlColumnSource.SetAttribute("Type", "System.String")
+    $CvXmlColumnSource.SetAttribute("Path", "Event/System/Provider/@Name")
+    $CvXmlColumnSource.SetAttribute("Visible", "")
+    $CvXmlColumnSource.InnerText = "200"
+    $CvXmlColumns.AppendChild($CvXmlColumnSource) | Out-Null
+
+    $CvXmlColumnEventId = $CvXmlDoc.CreateElement("Column")
+    $CvXmlColumnEventId.SetAttribute("Name", "Event ID")
+    $CvXmlColumnEventId.SetAttribute("Type", "System.UInt32")
+    $CvXmlColumnEventId.SetAttribute("Path", "Event/System/EventID")
+    $CvXmlColumnEventId.SetAttribute("Visible", "")
+    $CvXmlColumnEventId.InnerText = "75"
+    $CvXmlColumns.AppendChild($CvXmlColumnEventId) | Out-Null
+
+    $CvXmlColumnTaskCategory = $CvXmlDoc.CreateElement("Column")
+    $CvXmlColumnTaskCategory.SetAttribute("Name", "Task Category")
+    $CvXmlColumnTaskCategory.SetAttribute("Type", "System.String")
+    $CvXmlColumnTaskCategory.SetAttribute("Path", "Event/System/Task")
+    $CvXmlColumnTaskCategory.SetAttribute("Visible", "")
+    $CvXmlColumnTaskCategory.InnerText = "100"
+    $CvXmlColumns.AppendChild($CvXmlColumnTaskCategory) | Out-Null
+
+    $CvXmlColumnComputer = $CvXmlDoc.CreateElement("Column")
+    $CvXmlColumnComputer.SetAttribute("Name", "Computer")
+    $CvXmlColumnComputer.SetAttribute("Type", "System.String")
+    $CvXmlColumnComputer.SetAttribute("Path", "Event/System/Computer")
+    $CvXmlColumnComputer.SetAttribute("Visible", "")
+    $CvXmlColumnComputer.InnerText = "250"
+    $CvXmlColumns.AppendChild($CvXmlColumnComputer) | Out-Null
+
+    # Save the generated Custom View
+    $CvXmlDoc.Save($CvPath)
 }
 
-Function Export-CustomView ([String] $CvCategory, [String] $CvName, [String] $CvData) {
+Function Parse-Subscription ([IO.FileInfo] $Subscription) {
+    $Xml = [xml] (Get-Content $Subscription.FullName)
+    $Query = [xml] $Xml.Subscription.Query.InnerText
+    $QueryIds = $Query.Querylist.ChildNodes
+
+    $CvCategory = [IO.Path]::GetFileNameWithoutExtension($Subscription.FullName)
     if ($PerSubscriptionFolders) {
-        $CvFile = "$CvName.xml"
         $CvCategoryPath = Join-Path $CustomViewsPath $CvCategory
         if (Test-Path -Path $CvCategoryPath -PathType Container -IsValid) {
             if (!(Test-Path -Path $CvCategoryPath -PathType Container)) {
-                $null = New-Item -Path $CvCategoryPath -ItemType Directory
+                New-Item -Path $CvCategoryPath -ItemType Directory | Out-Null
             }
             $CustomViewsPath = Resolve-Path $CvCategoryPath
         } else {
             throw "A Custom Views category path is invalid: $CvCategoryPath"
         }
-    } else {
-        $CvFile = "$CvCategory - $CvName.xml"
     }
 
-    $CvPath = Join-Path $CustomViewsPath $CvFile
-    Out-File -FilePath $CvPath -Encoding UTF8 -InputObject $CvData -Force
-}
+    foreach ($QueryId in $QueryIds) {
+        $SelectElements = $QueryId.Select
+        if (!($SelectElements)) {
+            Write-Warning ("No Select elements in Query Id " + $QueryId.Id +
+                           " for subscription: " + $Subscription.Name)
+        } else {
+            foreach ($SelectElement in $SelectElements) {
+                $CvName = Get-SelectComment $SelectElement
+                if (!($CvName)) {
+                    Write-Warning ("Couldn't find the identifying comment for Select element:`n" + $SelectElement.OuterXML)
+                    break
+                }
 
-Function Extract-SelectComment ([Xml.XmlElement] $SelectElement) {
-    if (!($SelectElement.PreviousSibling)) {
-        return
+                if ($PerSubscriptionFolders) {
+                    $CvFile = "$CvName.xml"
+                } else {
+                    $CvFile = "$CvCategory - $CvName.xml"
+                }
+                $CvPath = Join-Path $CustomViewsPath $CvFile
+
+                New-CustomView $SelectElement $CvPath
+            }
+        }
     }
-
-    if ($SelectElement.PreviousSibling.GetType().Name -ne "XmlComment") {
-        return
-    }
-
-    $SelectComment = $SelectElement.PreviousSibling.Innertext.Trim()
-    return $SelectComment
 }
 
 Function Validate-Input () {
