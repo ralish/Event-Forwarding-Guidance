@@ -172,9 +172,9 @@ Function New-ScheduledTask ([Xml.XmlElement] $SelectElement, [String] $StPath) {
     $StXmlEventTrigger = $StXmlDoc.CreateElement("EventTrigger")
     $StXmlTriggers.AppendChild($StXmlEventTrigger) | Out-Null
 
-    $StXmlEnabled = $StXmlDoc.CreateElement("Enabled")
-    $StXmlEnabled.InnerText = $StEnabled
-    $StXmlEventTrigger.AppendChild($StXmlEnabled) | Out-Null
+    $StXmlEtEnabled = $StXmlDoc.CreateElement("Enabled")
+    $StXmlEtEnabled.InnerText = "true" # Only for the event trigger
+    $StXmlEventTrigger.AppendChild($StXmlEtEnabled) | Out-Null
 
     $StXmlSubscription = $StXmlDoc.CreateElement("Subscription")
     $StXmlSubscription.InnerText = $EtXmlDoc.OuterXml
@@ -237,7 +237,9 @@ Function New-ScheduledTask ([Xml.XmlElement] $SelectElement, [String] $StPath) {
     $StXmlAllowStartOnDemand.InnerText = "true"
     $StXmlSettings.AppendChild($StXmlAllowStartOnDemand) | Out-Null
 
-    $StXmlSettings.AppendChild($StXmlEnabled.Clone()) | Out-Null # Reuse earlier element
+    $StXmlStEnabled = $StXmlDoc.CreateElement("Enabled")
+    $StXmlStEnabled.InnerText = $StEnabled
+    $StXmlSettings.AppendChild($StXmlStEnabled) | Out-Null
 
     $StXmlHidden = $StXmlDoc.CreateElement("Hidden")
     $StXmlHidden.InnerText = "false"
