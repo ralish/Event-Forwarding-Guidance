@@ -111,7 +111,6 @@ Function Get-SelectComment ([Xml.XmlElement] $SelectElement) {
     }
 
     $SelectComment = $SelectElement.PreviousSibling.Innertext.Trim()
-    Write-Debug "Found comment of Select element: $SelectComment"
     return $SelectComment
 }
 
@@ -320,12 +319,12 @@ Function Validate-Input () {
     if (Test-Path -Path $WECSubscriptionsPath -PathType Container) {
         $script:WECSubscriptionsPath = Resolve-Path $WECSubscriptionsPath
     } else {
-        Write-Error "The provided WEC subscriptions path does not exist: $WECSubscriptionsPath"
+        throw "The provided WEC subscriptions path does not exist: $WECSubscriptionsPath"
     }
 
     $script:Subscriptions = Get-ChildItem -Path $WECSubscriptionsPath -Recurse -File -Include "*.xml"
     if (!($Subscriptions)) {
-        Write-Error "No WEC subscriptions found in the given path: $WECSubscriptionsPath"
+        throw "No WEC subscriptions found in the given path: $WECSubscriptionsPath"
     }
 
     if (Test-Path -Path $ScheduledTasksPath -PathType Container -IsValid) {
@@ -335,7 +334,7 @@ Function Validate-Input () {
         }
         $script:ScheduledTasksPath = Resolve-Path $ScheduledTasksPath
     } else {
-        Write-Error "The provided Scheduled Tasks path is invalid: $ScheduledTasksPath"
+        throw "The provided Scheduled Tasks path is invalid: $ScheduledTasksPath"
     }
 }
 

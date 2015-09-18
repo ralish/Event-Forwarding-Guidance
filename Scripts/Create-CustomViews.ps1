@@ -66,36 +66,6 @@ Set-Variable -Name CvFileQueryConfigEnd -Option Constant -Scope Script -Value "`
 Set-Variable -Name CvFileResultsConfig -Option Constant -Scope Script -Value "`n`t<ResultsConfig>`n`t`t<Columns>`n`t`t`t<Column Name=`"Level`" Type=`"System.String`" Path=`"Event/System/Level`" Visible=`"`">100</Column>`n`t`t`t<Column Name=`"Date and Time`" Type=`"System.DateTime`" Path=`"Event/System/TimeCreated/@SystemTime`" Visible=`"`">150</Column>`n`t`t`t<Column Name=`"Source`" Type=`"System.String`" Path=`"Event/System/Provider/@Name`" Visible=`"`">200</Column>`n`t`t`t<Column Name=`"Event ID`" Type=`"System.UInt32`" Path=`"Event/System/EventID`" Visible=`"`">75</Column>`n`t`t`t<Column Name=`"Task Category`" Type=`"System.String`" Path=`"Event/System/Task`" Visible=`"`">100</Column>`n`t`t`t<Column Name=`"Computer`" Type=`"System.String`" Path=`"Event/System/Computer`" Visible=`"`">250</Column>`n`t`t</Columns>`n`t</ResultsConfig>"
 Set-Variable -Name CvFileViewerConfigEnd -Option Constant -Scope Script -Value "`n</ViewerConfig>"
 
-Function Validate-Input () {
-    if (Test-Path -Path $WECSubscriptionsPath -PathType Container) {
-        $script:WECSubscriptionsPath = Resolve-Path $WECSubscriptionsPath
-    } else {
-        Write-Error "The provided WEC subscriptions path does not exist: $WECSubscriptionsPath"
-    }
-
-    $script:Subscriptions = Get-ChildItem -Path $WECSubscriptionsPath -Recurse -File -Include "*.xml"
-    if (!($Subscriptions)) {
-        Write-Error "No WEC subscriptions found in the given path: $WECSubscriptionsPath"
-    }
-
-    if ($TimeFilter) {
-        if ($TimeFilter.TotalSeconds -lt 60) {
-            Write-Error "The provided time filter must be at least 60 seconds."
-        }
-        $script:CustomViewsPath = Join-Path $CustomViewsPath (Get-TimeSpanDescription $TimeFilter)
-    }
-
-    if (Test-Path -Path $CustomViewsPath -PathType Container -IsValid) {
-        if (!(Test-Path -Path $CustomViewsPath -PathType Container)) {
-            Write-Verbose "Creating the specified directory to store Custom Views: $CustomViewsPath"
-            $null = New-Item -Path $CustomViewsPath -ItemType Directory
-        }
-        $script:CustomViewsPath = Resolve-Path $CustomViewsPath
-    } else {
-        Write-Error "The provided Custom Views path is invalid: $CustomViewsPath"
-    }
-}
-
 Function Get-TimeSpanDescription ([TimeSpan] $TimeSpan) {
     if ($TimeSpan.Days -gt 0 ) {
         if ($TimeSpan.Days -eq 1) {
@@ -195,7 +165,7 @@ Function Export-CustomView ([String] $CvCategory, [String] $CvName, [String] $Cv
             }
             $CustomViewsPath = Resolve-Path $CvCategoryPath
         } else {
-            Write-Error "A Custom Views category path is invalid: $CvCategoryPath"
+            throw "A Custom Views category path is invalid: $CvCategoryPath"
         }
     } else {
         $CvFile = "$CvCategory - $CvName.xml"
@@ -215,8 +185,37 @@ Function Extract-SelectComment ([Xml.XmlElement] $SelectElement) {
     }
 
     $SelectComment = $SelectElement.PreviousSibling.Innertext.Trim()
-    Write-Debug "Found comment of Select element: $SelectComment"
     return $SelectComment
+}
+
+Function Validate-Input () {
+    if (Test-Path -Path $WECSubscriptionsPath -PathType Container) {
+        $script:WECSubscriptionsPath = Resolve-Path $WECSubscriptionsPath
+    } else {
+        throw "The provided WEC subscriptions path does not exist: $WECSubscriptionsPath"
+    }
+
+    $script:Subscriptions = Get-ChildItem -Path $WECSubscriptionsPath -Recurse -File -Include "*.xml"
+    if (!($Subscriptions)) {
+        throw "No WEC subscriptions found in the given path: $WECSubscriptionsPath"
+    }
+
+    if ($TimeFilter) {
+        if ($TimeFilter.TotalSeconds -lt 60) {
+            throw "The provided time filter must be at least 60 seconds."
+        }
+        $script:CustomViewsPath = Join-Path $CustomViewsPath (Get-TimeSpanDescription $TimeFilter)
+    }
+
+    if (Test-Path -Path $CustomViewsPath -PathType Container -IsValid) {
+        if (!(Test-Path -Path $CustomViewsPath -PathType Container)) {
+            Write-Verbose "Creating the specified directory to store Custom Views: $CustomViewsPath"
+            $null = New-Item -Path $CustomViewsPath -ItemType Directory
+        }
+        $script:CustomViewsPath = Resolve-Path $CustomViewsPath
+    } else {
+        throw "The provided Custom Views path is invalid: $CustomViewsPath"
+    }
 }
 
 # Additional sanity checking
